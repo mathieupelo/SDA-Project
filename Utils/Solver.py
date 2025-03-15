@@ -18,6 +18,8 @@ class Portfolio_Solver():
         cov_matrix = returns.cov()
 
         adjusted_mean_returns = mean_returns * signal_scores
+        # Normalize signal scores to ensure they sum to 1
+        signal_scores = signal_scores / np.sum(signal_scores)
 
         # Step 4: Implementing the Mean-Variance Optimization
         # Defining the optimization problem
@@ -29,7 +31,7 @@ class Portfolio_Solver():
 
         # Covert data to cvxopt matrices
         P = matrix(cov_matrix)  # Covariance matrix
-        q = matrix(np.zeros(n_assets))  # No linear term (we're not adding any risk-free asset)
+        q = matrix(-adjusted_mean_returns)  # No linear term (we're not adding any risk-free asset)
 
         # Constraints: sum of weights = 1 (fully invested portfolio)
         G = matrix(-np.eye(n_assets))  # Negative identity matrix for weight constraints (all weights >= 0)
@@ -65,7 +67,7 @@ class Portfolio_Solver():
 # Let's assume we are interested in the following stocks: AAPL, MSFT, TSLA, AMZN, GOOG
 tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
 # Signal scores for AAPL, MSFT, TSLA, AMZN, GOOG
-signal_scores = np.array([1.2, 0.8, 1.5, 1.0, 1.3])  
+signal_scores = np.array([1.0, 1.0, 1.0, 1.0, 1.0])  
 
 # Step 1: Download historical stock data
 data = yf.download(tickers, start='2020-01-01', end='2023-01-01')
