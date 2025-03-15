@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 from cvxopt import matrix, solvers
 
 class Portfolio_Solver():
-    def __init__(self):
+    def __init__(self, penalty_factor=0.00001):
         self.method = ""
+        self.penalty_factor = penalty_factor
 
     def SolvePortfolio(self, tickers: list[str], data, signal_scores: np.ndarray):
         # Step 2: Calculate daily returns
         returns = data['Close'].pct_change().dropna()
-        print(returns)
 
         # Step 3: Calculate mean returns and the covariance matrix
         mean_returns = returns.mean()
@@ -40,8 +40,20 @@ class Portfolio_Solver():
         A = matrix(np.ones((1, n_assets)))  # Sum of weights constraint
         b = matrix(np.ones(1))  # The sum of weights must equal 1
 
-        # Solve the optimization problem
-        sol = solvers.qp(P, q, G, h, A, b)
+        # Add a penalty for weights that exceed 0.3
+        penalty_matrix = np.zeros((n_assets, n_assets))
+        for i in range(n_assets):
+            penalty_matrix[i, i] = self.penalty_factor
+        # Penalty term for excess weight beyond 0.3
+        penalty_term = np.array([max(0, weight - 0.3) ** 2 for weight in adjusted_mean_returns])
+        # Modify P with the penalty term (quadratic form)
+        penalty_P = np.array(P) + penalty_matrix
+        # Convert to cvxopt matrix
+        P_penalty = matrix(penalty_P)
+
+       
+        # Solve the optimization problem with penalty term
+        sol = solvers.qp(matrix(penalty_P), q, G, h, A, b)
 
         # Extract portfolio weights
         weights = np.array(sol['x']).flatten()
@@ -49,31 +61,24 @@ class Portfolio_Solver():
         # Step 5: Display results
         print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
 
-        # Step 6: Plot the optimized portfolio
-        plt.figure(figsize=(10,6))
-        plt.bar(tickers, weights)
-        plt.title("Optimized Portfolio Weights")
-        plt.ylabel("Weight")
-        plt.show()
-
-        # Step 7: Calculate Portfolio Return and Risk
+        # Step 6: Calculate Portfolio Return and Risk
         portfolio_return = np.sum(weights * adjusted_mean_returns) * 252  # Annualize the return (252 trading days)
         portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)  # Annualize the volatility
 
         print(f"Expected Annual Portfolio Return: {portfolio_return:.2f}")
         print(f"Expected Annual Portfolio Volatility: {portfolio_volatility:.2f}")
-        
 
-# Let's assume we are interested in the following stocks: AAPL, MSFT, TSLA, AMZN, GOOG
-tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
-# Signal scores for AAPL, MSFT, TSLA, AMZN, GOOG
-signal_scores = np.array([1.0, 1.0, 1.0, 1.0, 1.0])  
+        return weights
 
-# Step 1: Download historical stock data
-data = yf.download(tickers, start='2020-01-01', end='2023-01-01')
+    def ShowPortfolioWeights(self, tickers, portfolio_weights):
+        # Step 6: Plot the optimized portfolio
+        plt.figure(figsize=(10,6))
+        plt.bar(tickers, portfolio_weights)
+        plt.title("Optimized Portfolio Weights")
+        plt.ylabel("Weight")
+        plt.show()
 
-portfolio_solver = Portfolio_Solver()
-portfolio_solver.SolvePortfolio(tickers, data, signal_scores)
+
 
 
 
