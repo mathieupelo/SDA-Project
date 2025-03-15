@@ -8,7 +8,7 @@ class Portfolio_Solver():
     def __init__(self):
         self.method = ""
 
-    def SolvePortfolio(self, tickers: list[str], data):
+    def SolvePortfolio(self, tickers: list[str], data, signal_scores: np.ndarray):
         # Step 2: Calculate daily returns
         returns = data['Close'].pct_change().dropna()
         print(returns)
@@ -17,12 +17,14 @@ class Portfolio_Solver():
         mean_returns = returns.mean()
         cov_matrix = returns.cov()
 
+        adjusted_mean_returns = mean_returns * signal_scores
+
         # Step 4: Implementing the Mean-Variance Optimization
         # Defining the optimization problem
         n_assets = len(tickers)
 
         # Convert mean returns and covariance matrix to cvxopt format
-        mean_returns = np.array(mean_returns)
+        adjusted_mean_returns = np.array(adjusted_mean_returns)
         cov_matrix = np.array(cov_matrix)
 
         # Covert data to cvxopt matrices
@@ -53,19 +55,23 @@ class Portfolio_Solver():
         plt.show()
 
         # Step 7: Calculate Portfolio Return and Risk
-        portfolio_return = np.sum(weights * mean_returns) * 252  # Annualize the return (252 trading days)
+        portfolio_return = np.sum(weights * adjusted_mean_returns) * 252  # Annualize the return (252 trading days)
         portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)  # Annualize the volatility
 
         print(f"Expected Annual Portfolio Return: {portfolio_return:.2f}")
         print(f"Expected Annual Portfolio Volatility: {portfolio_volatility:.2f}")
         
-# Step 1: Download historical stock data
+
 # Let's assume we are interested in the following stocks: AAPL, MSFT, TSLA, AMZN, GOOG
 tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
+# Signal scores for AAPL, MSFT, TSLA, AMZN, GOOG
+signal_scores = np.array([1.2, 0.8, 1.5, 1.0, 1.3])  
+
+# Step 1: Download historical stock data
 data = yf.download(tickers, start='2020-01-01', end='2023-01-01')
 
 portfolio_solver = Portfolio_Solver()
-portfolio_solver.SolvePortfolio(tickers, data)
+portfolio_solver.SolvePortfolio(tickers, data, signal_scores)
 
 
 
