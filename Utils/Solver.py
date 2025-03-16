@@ -143,8 +143,12 @@ class Portfolio_Solver():
 
         return cumulative_returns, total_return, annualized_return
     
-    def ShowPortfolioPerformance(self, cumulative_returns, data):
-        data.index = pd.to_datetime(data.index)
+    def ShowPortfolioPerformance(self, cumulative_returns, data, start_date, end_date):
+
+        # Filter data for the specific date range
+        filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
+        
+        filtered_data.index = pd.to_datetime(filtered_data.index)
         
         # Create an array to hold colors (green for up, red for down)
         colors = ['green' if cumulative_returns[i] >= cumulative_returns[i-1] else 'red' for i in range(1, len(cumulative_returns))]
@@ -154,7 +158,7 @@ class Portfolio_Solver():
 
         # Plot each segment individually
         for i in range(1, len(cumulative_returns)):
-            plt.plot(data.index[i-1:i+1], cumulative_returns[i-1:i+1], color=colors[i-1])
+            plt.plot(filtered_data.index[i-1:i+1], cumulative_returns[i-1:i+1], color=colors[i-1])
 
         plt.title("Cumulative Portfolio Returns")
         plt.xlabel("Date")
