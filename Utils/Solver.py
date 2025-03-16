@@ -18,7 +18,6 @@ class Portfolio_Solver():
         mean_returns = returns.mean()
         cov_matrix = returns.cov()
 
-
         # Step 4: Implementing the Mean-Variance Optimization
         # Defining the optimization problem
         n_assets = len(tickers)
@@ -116,7 +115,15 @@ class Portfolio_Solver():
         plt.ylabel("Weight")
         plt.show()
 
-    def CalculatePortfolioReturns(self, tickers, data, weights):
+    def CalculatePortfolioReturns(self, tickers, data, weights, start_date='2020-01-01', time_period=252):
+        # Filter the data to start from the fixed start_date
+        data.index = pd.to_datetime(data.index)
+        data = data[data.index >= start_date]
+
+        # Limit the data to the fixed time period (e.g., the first 252 trading days)
+        data = data.iloc[:time_period]
+
+
         # Calculate daily returns for each stock
         returns = data['Close'].pct_change().dropna()
 
