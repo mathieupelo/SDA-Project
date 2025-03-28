@@ -103,7 +103,7 @@ class Portfolio_Solver():
         weights = np.array(sol['x']).flatten()
 
         # Step 5: Display results
-        #print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
+        print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
 
         return weights
     
@@ -116,6 +116,9 @@ class Portfolio_Solver():
         plt.show()
 
     def CalculatePortfolioReturns(self, tickers, data, weights, start_date='2020-01-01', time_period=252):
+        #TODO: Add a check that time_period == 1
+        # if it is, we do not do total_return = cumulative_returns[-1] - 1  # The final cumulative return minus 1 (for initial value)
+        
         # Filter the data to start from the fixed start_date
         data.index = pd.to_datetime(data.index)
         data = data[data.index >= start_date]

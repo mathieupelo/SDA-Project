@@ -113,13 +113,14 @@ def calculate_sma_signal(data, tickers, date):
             # Calculate the difference between the 50-period and 200-period SMAs
             sma_diff = sma_50.loc[date] - sma_200.loc[date]
             
-            # Generate the score based on the SMA difference
-            # Positive score for Golden Cross, negative score for Death Cross, larger the difference, larger the score
+            # Append the ticker and the SMA difference to the signal_scores
+
             signal_scores.append([ticker, sma_diff])  # Score is just the difference between SMAs
         else:
             # Handle the case when the date is not available in the data range
             signal_scores.append([ticker, np.nan])
     
+    print("SIGNAL SCORES", signal_scores)
     return signal_scores
 
 def combine_signals(signal_weights, signal_scores):
