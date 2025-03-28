@@ -121,3 +121,11 @@ def calculate_sma_signal(data, tickers, date):
             signal_scores.append([ticker, np.nan])
     
     return signal_scores
+
+def combine_signals(signal_weights, signal_scores):
+    rsi, macd, sma = signal_scores
+    w_rsi, w_macd, w_sma = signal_weights
+    new_rsi = rsi * w_rsi
+    new_macd = macd * w_macd
+    new_sma = sma * w_sma
+    return new_rsi + new_macd + new_sma

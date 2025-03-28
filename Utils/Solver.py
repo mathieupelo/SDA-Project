@@ -103,7 +103,7 @@ class Portfolio_Solver():
         weights = np.array(sol['x']).flatten()
 
         # Step 5: Display results
-        print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
+        #print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
 
         return weights
     
