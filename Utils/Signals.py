@@ -120,7 +120,7 @@ def calculate_sma_signal(data, tickers, date):
             # Handle the case when the date is not available in the data range
             signal_scores.append([ticker, np.nan])
     
-    print("SIGNAL SCORES", signal_scores)
+    #print("SIGNAL SCORES", signal_scores)
     return signal_scores
 
 def combine_signals(signal_weights, signal_scores):
