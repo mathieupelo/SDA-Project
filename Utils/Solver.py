@@ -9,6 +9,7 @@ class Portfolio_Solver():
         self.method = ""
         self.penalty_factor = penalty_factor
         self.max_weight_threshold = max_weight_threshold
+        self.risk_aversion = 0.5  # λ: Controls return vs. risk trade-off
 
     def SolvePortfolio(self, tickers: list[str], data):
         # Step 2: Calculate daily returns
@@ -103,6 +104,54 @@ class Portfolio_Solver():
         weights = np.array(sol['x']).flatten()
 
         # Step 5: Display results
+        print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
+
+        return weights
+    
+    def SolveSignalPortfolioMVO(self, tickers, var_data, signal_scores):
+        """
+        Mean-Variance Optimization with Diversification Constraints.
+        """
+        # Normalize signal scores
+        normalized_scores = signal_scores / np.sum(signal_scores)
+
+        # Compute historical daily returns
+        var_returns = var_data['Close'].pct_change().dropna()
+
+        # Expected returns (mean of past returns)
+        mu = var_returns.mean().values.reshape(-1, 1)  
+
+        # Compute covariance matrix
+        Sigma = var_returns.cov().values  
+
+        n_assets = len(tickers)
+
+        # Quadratic term (Risk component: λ * w'Σw)
+        P = matrix(self.risk_aversion * Sigma)  
+
+        # Linear term (maximize return + signal influence)
+        q = matrix(-mu - normalized_scores.reshape(-1, 1))  
+
+        # Constraints
+        G = np.vstack([
+            -np.eye(n_assets),   # No short selling (weights ≥ 0)
+            np.eye(n_assets)    # Max weight per asset
+        ])
+        h = np.hstack([
+            np.zeros(n_assets),   # No shorting constraint (w ≥ 0)
+            np.ones(n_assets) * self.max_weight_threshold  # Max per stock
+        ])
+
+        # Full investment constraint: sum(w) = 1
+        A = matrix(np.ones((1, n_assets)))  
+        b = matrix(np.ones(1))
+
+        # Solve quadratic optimization problem
+        sol = solvers.qp(P, q, G=matrix(G), h=matrix(h), A=A, b=b)
+
+        # Extract portfolio weights
+        weights = np.array(sol['x']).flatten()
+
         print(f"Optimized Portfolio Weights:\n{dict(zip(tickers, weights))}")
 
         return weights
