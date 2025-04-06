@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from cvxopt import matrix, solvers
+from Utils.Signals import *
 
 class Portfolio_Solver():
     def __init__(self, penalty_factor=0.00001, max_weight_threshold=0.3):
@@ -217,6 +218,56 @@ class Portfolio_Solver():
         plt.ylabel("Cumulative Return")
         plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
         plt.show()
+
+    def CalculateEvalReturns(self, tickers, data, df_eval, W):
+        # Now, iterate over df_step1 to calculate combined scores, portfolio weights, and returns
+        dataset_returns_ridge = []
+
+        # Step 2: Create the second DataFrame with combined_scores, portfolio_weights, total_return, and annualized_return
+        for index, row in df_eval.iterrows():
+            date = row['date']
+            rsi_scores = row['rsi_scores']
+            macd_scores = row['macd_scores']
+            sma_scores = row['sma_scores']
+
+            print(f"Processing {date} for Step 2")
+
+            # Step 2a: Combine the signals (you can later train a model to adjust these weights)
+            signal_weights = W  # You can adjust these weights later based on your model
+            combined_scores = combine_signals(signal_weights, [rsi_scores, macd_scores, sma_scores])
+            combined_scores_with_tickers = list(zip(tickers, combined_scores))
+
+            print(f"Combined Scores: {combined_scores_with_tickers}")
+
+            # Step 2b: Solve the portfolio based on the combined signal scores
+            portfolio_weights = self.SolveSignalPortfolioMVO(tickers, data, combined_scores)
+
+            # Step 2c: Calculate the returns for the portfolio based on the optimized weights
+            cumulative_returns, total_return, annualized_return = self.CalculatePortfolioReturns(tickers, data, portfolio_weights, start_date=date, time_period=252)
+
+            # Step 2d: Add the calculated values to the second dataset
+            dataset_returns_ridge.append({
+                'date': date,
+                'combined_scores': combined_scores,
+                'portfolio_weights': portfolio_weights,
+                'total_return': total_return,
+                'annualized_return': annualized_return
+            })
+
+        # Convert the second dataset into a DataFrame
+        df_returns = pd.DataFrame(dataset_returns_ridge)
+
+        # You can now display or use the two DataFrames for further analysis or training your model
+        display(df_returns)  # The second DataFrame with combined scores, portfolio weights, and returns
+
+        average_annualized_return = df_returns['annualized_return'].mean()
+        print("Average return for ridge : ", average_annualized_return)
+
+        total_return_sum = df_returns['total_return'].sum()
+        print(f"Total Return Sum: {total_return_sum}")
+
+        return average_annualized_return, total_return_sum
+
 
 
 
