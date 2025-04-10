@@ -4,29 +4,30 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, r2_score
 
 
-def simulate_signal_data(n_days=500, seed=42, true_weights=[0.4, 0.3, 0.3]):
+def simulate_signal_data(n_days=500, seed=42, true_weights=None):
     np.random.seed(seed)
-    rsi_avg = np.random.normal(0, 1, n_days)
-    macd_avg = np.random.normal(0, 1, n_days)
-    sma_avg = np.random.normal(0, 1, n_days)
+    n_signals = len(true_weights)
 
-    signals = np.vstack([rsi_avg, macd_avg, sma_avg]).T
-    noise = np.random.normal(0, 0.2, n_days)
-    total_return = signals @ true_weights + noise
+    # Generate signals
+    signals = np.random.normal(0, 1, (n_days, n_signals))
+    
+    # Generate noisy target (total return)
+    noise = np.random.normal(0, 50, n_days)
+    total_return = signals @ np.array(true_weights) + noise
 
-    df_train = pd.DataFrame({
-        'rsi_avg': rsi_avg,
-        'macd_avg': macd_avg,
-        'sma_avg': sma_avg,
-        'total_return': total_return
-    })
+    # Create column names dynamically
+    columns = [f'signal_{i+1}' for i in range(n_signals)]
+    df_train = pd.DataFrame(signals, columns=columns)
+    df_train['total_return'] = total_return
 
     return df_train, true_weights
 
 
-def simulate_training(n_day):
-    df_train, true_weights = simulate_signal_data(n_days=n_day, true_weights=[0.8, 0.1, 0.1])
-    X = df_train[['rsi_avg', 'macd_avg', 'sma_avg']].values
+def simulate_training(n_day, true_weights):
+    df_train, _ = simulate_signal_data(n_days=n_day, true_weights=true_weights)
+    
+    signal_cols = [col for col in df_train.columns if col.startswith('signal_')]
+    X = df_train[signal_cols].values
     y = df_train['total_return'].values.reshape(-1, 1)
 
     W, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
@@ -34,7 +35,7 @@ def simulate_training(n_day):
 
     mse = mean_squared_error(y, y_pred)
     r2 = r2_score(y, y_pred)
-    mse_weights = np.mean((W.ravel() - true_weights) ** 2)
+    mse_weights = np.mean((W.ravel() - np.array(true_weights)) ** 2)
 
     return {
         'n_day': n_day,
@@ -44,33 +45,53 @@ def simulate_training(n_day):
     }
 
 
-# List of different training durations
+# Configurable parameters
 training_days = [5, 10, 20, 83, 250, 500, 750, 1000, 1250]
+signal_sizes = [3, 5, 10]  
 
-# Run simulations and collect metrics
-results = [simulate_training(n) for n in training_days]
+# Store results
+all_results = {}
 
-# Convert to DataFrame for easy plotting
-df_results = pd.DataFrame(results)
+for n_signals in signal_sizes:
+    # Generate normalized random true weights
+    rng = np.random.default_rng(seed=42 + n_signals)
+    raw_weights = rng.random(n_signals)
+    true_weights = raw_weights / raw_weights.sum()
 
-# --- Plotting ---
+    # Simulate for all training days
+    results = [simulate_training(n, true_weights) for n in training_days]
+    df_results = pd.DataFrame(results)
+    all_results[n_signals] = df_results
+
+# --- Plotting all on same graph ---
 fig, axs = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+colors = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink']  # Extend if needed
 
-axs[0].plot(df_results['n_day'], df_results['mse'], marker='o')
+for idx, (n_signals, df_results) in enumerate(all_results.items()):
+    label = f"{n_signals} signals"
+    color = colors[idx % len(colors)]
+    
+    axs[0].plot(df_results['n_day'], df_results['mse'], marker='o', label=label, color=color)
+    axs[1].plot(df_results['n_day'], df_results['r2'], marker='o', label=label, color=color)
+    axs[2].plot(df_results['n_day'], df_results['mse_weights'], marker='o', label=label, color=color)
+
+# Titles and labels
 axs[0].set_title("MSE vs Training Days")
 axs[0].set_ylabel("MSE")
 axs[0].grid(True)
 
-axs[1].plot(df_results['n_day'], df_results['r2'], marker='o', color='green')
 axs[1].set_title("R² vs Training Days")
 axs[1].set_ylabel("R²")
 axs[1].grid(True)
 
-axs[2].plot(df_results['n_day'], df_results['mse_weights'], marker='o', color='red')
 axs[2].set_title("MSE between learned and true weights vs Training Days")
 axs[2].set_xlabel("Training Days")
 axs[2].set_ylabel("MSE Weights")
 axs[2].grid(True)
+
+# Add legends to each subplot
+for ax in axs:
+    ax.legend()
 
 plt.tight_layout()
 plt.show()

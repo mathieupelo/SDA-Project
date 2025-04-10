@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from cvxopt import matrix, solvers
-from Signals import *
+from Utils.Signals import *
 
 class Portfolio_Solver():
     def __init__(self, penalty_factor=0.00001, max_weight_threshold=0.3):
