@@ -1,10 +1,11 @@
 ﻿import mysql.connector
+from mysql.connector.abstracts import MySQLConnectionAbstract
 
 USER = 'sda_admin'
 PASSWORD = 'qwer1234'
 DATABASE = 'sda'
 
-def connect_to_database(host):
+def connect_to_database(host: str) -> MySQLConnectionAbstract:
     """
     Connects to the database at 'host' address.
 

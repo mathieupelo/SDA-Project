@@ -1,12 +1,16 @@
 ﻿import pandas as pd
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from typing import List
+from datetime import date
+
 
 class Stock:
-    def __init__(self, stock_id, name, ticker):
+    def __init__(self, stock_id: str, name: str, ticker: str):
         self.id = stock_id
         self.name = name
         self.ticker = ticker
 
-def get_stocks(conn):
+def get_stocks(conn: MySQLConnectionAbstract) -> List[Stock]:
     """
     Retrieves the stock list from the database.
 
@@ -23,7 +27,7 @@ def get_stocks(conn):
     return stocks
 
 
-def get_stock(conn, ticker):
+def get_stock(conn: MySQLConnectionAbstract, ticker: str) -> Stock | None:
     """
     Attempts to fetch a stock from the database for ticker symbol.
 
@@ -45,7 +49,7 @@ def get_stock(conn, ticker):
     return None
 
 
-def get_stock_price_table(conn, stock_id, start, end):
+def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date | str, end: date | str) -> pd.DataFrame:
     """
         Fetches historical stock prices for a given stock_id and date range.
 
@@ -73,14 +77,14 @@ def get_stock_price_table(conn, stock_id, start, end):
     return pd.DataFrame(rows, columns=["date", "close_price"])
 
 
-def get_stock_price(conn, stock_id, date):
+def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | str) -> float or None:
     """
     Fetches the closing price of a stock for a specific date.
 
     Parameters:
         conn: MySQL connection object.
         stock_id (str): UUID of the stock in the 'stock' table.
-        date (str or datetime.date): The date to retrieve the price for.
+        when (str or datetime.date): The date to retrieve the price for.
 
     Returns:
         float or None: The closing price if found, otherwise None.
@@ -94,7 +98,7 @@ def get_stock_price(conn, stock_id, date):
           """
 
     cursor = conn.cursor()
-    cursor.execute(sql, (stock_id, date))
+    cursor.execute(sql, (stock_id, when))
     result = cursor.fetchone()
 
     return result[0] if result else None

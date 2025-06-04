@@ -4,7 +4,7 @@ from datetime import date as datetime
 from data.utils import connect_to_database
 from data.stocks import get_stocks
 
-def fetch_prices(host):
+def fetch_prices(host: str):
     conn = connect_to_database(host)
     stocks = get_stocks(conn)
 

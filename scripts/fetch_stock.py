@@ -2,7 +2,7 @@
 import yfinance as yf
 from data.utils import connect_to_database
 
-def fetch_stocks(ticker_list, host):
+def fetch_stocks(ticker_list, host: str):
     rows = []
     conn = connect_to_database(host)
 
