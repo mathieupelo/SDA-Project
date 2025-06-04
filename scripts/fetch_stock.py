@@ -1,22 +1,10 @@
-﻿import mysql.connector
-import uuid
+﻿import uuid
 import yfinance as yf
+from data.utils import connect_to_database
 
 def fetch_stocks(ticker_list, host):
-    """
-    Populates the MySQL database with stock data.
-
-    Parameters:
-    - ticker_list: A list of ticker symbols.
-    - host: Database host string.
-    """
     rows = []
-    conn = mysql.connector.connect(
-        host=host,
-        user='sda_admin',
-        password='qwer1234',
-        database='sda'
-    )
+    conn = connect_to_database(host)
 
     for stock_symbol in ticker_list:
         stock = yf.Ticker(stock_symbol)
