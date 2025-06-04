@@ -11,6 +11,8 @@ def calculate_rsi_signal(data, tickers, date, period=14):
     
     Parameters:
     - data: A DataFrame containing the 'Close' prices for each stock (tickers as columns).
+    - tickers: A list of ticker symbols.
+    - date: The date to calculate the RSI for.
     - period: The lookback period for the RSI calculation (default is 14).
     
     Returns:

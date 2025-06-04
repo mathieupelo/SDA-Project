@@ -46,6 +46,14 @@ class Portfolio_Solver():
     def solve_signal_portfolio_MVO(self, tickers, var_data, signal_scores):
         """
         Mean-Variance Optimization with Diversification Constraints.
+
+        Parameters:
+        - tickers: A list of ticker symbols.
+        - var_data: A DataFrame containing the 'Close' prices for each stock (tickers as columns).
+        - signal_scores: A vector of signals scores for each stock (tickers as columns).
+
+        Returns:
+        - Recommended output weight for each stock.
         """
         # Normalize signal scores
         normalized_scores = signal_scores / np.sum(signal_scores)
