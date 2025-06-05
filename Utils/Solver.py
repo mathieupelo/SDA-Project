@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from cvxopt import matrix, solvers
+from jupyterlab.utils import deprecated
+from pandas import DataFrame
+
 from Utils.Signals import *
 
 # Min-Max Normalization function to scale each signal between 0 and 1
@@ -52,7 +55,8 @@ class Portfolio_Solver():
         self.max_weight_threshold = max_weight_threshold
         self.risk_aversion = 0.5  # λ: Controls return vs. risk trade-off
 
-    def solve_signal_portfolio_MVO(self, tickers, var_data, signal_scores):
+    @deprecated
+    def solve_signal_portfolio_MVO(self, tickers, var_data: DataFrame, signal_scores):
         """
         Mean-Variance Optimization with Diversification Constraints.
 
@@ -100,7 +104,8 @@ class Portfolio_Solver():
 
 
         return weights
-    
+
+    @deprecated
     def show_portfolio_weights(self, tickers, portfolio_weights):
         plt.figure(figsize=(10,6))
         plt.bar(tickers, portfolio_weights)
@@ -108,6 +113,7 @@ class Portfolio_Solver():
         plt.ylabel("Weight")
         plt.show()
 
+    @deprecated
     def calculate_portfolio_returns(self, tickers, data, weights, start_date='2020-01-01', time_period=252):
         #TODO: Add a check that time_period == 1
         # if it is, we do not do total_return = cumulative_returns[-1] - 1  # The final cumulative return minus 1 (for initial value)
@@ -141,6 +147,7 @@ class Portfolio_Solver():
     
 
 
+    @deprecated
     def show_portfolio_performance(self, cumulative_returns, data, start_date, end_date):
         # Filter data for the specific date range
         filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
@@ -164,6 +171,7 @@ class Portfolio_Solver():
         plt.show()
 
 
+    @deprecated
     def calculate_eval_returns(self, tickers, data, df_eval, W):
         # Now, iterate over df_step1 to calculate combined scores, portfolio weights, and returns
         dataset_returns_ridge = []

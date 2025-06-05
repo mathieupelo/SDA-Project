@@ -1,14 +1,33 @@
 ﻿import pandas as pd
 from mysql.connector.abstracts import MySQLConnectionAbstract
-from typing import List
+from typing import List, Dict
 from datetime import date
 
 
 class Stock:
     def __init__(self, stock_id: str, name: str, ticker: str):
-        self.id = stock_id
-        self.name = name
-        self.ticker = ticker
+        self._id = stock_id
+        self._name = name
+        self._ticker = ticker
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def ticker(self):
+        return self._ticker
+
+    def __hash__(self):
+        return hash(self._id)
+
+    def __eq__(self, other):
+        return self.id == other.id and self.ticker == other.ticker and self.name == other.name
+
 
 def get_stocks(conn: MySQLConnectionAbstract) -> List[Stock]:
     """
@@ -49,7 +68,7 @@ def get_stock(conn: MySQLConnectionAbstract, ticker: str) -> Stock | None:
     return None
 
 
-def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date | str, end: date | str) -> pd.DataFrame:
+def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date, end: date) -> Dict[date, float]:
     """
         Fetches historical stock prices for a given stock_id and date range.
 
@@ -67,14 +86,14 @@ def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: d
           FROM stock_price
           WHERE stock_id = %s \
             AND date BETWEEN %s AND %s
-          ORDER BY date \
+          ORDER BY date
           """
 
     cursor = conn.cursor()
     cursor.execute(sql, (stock_id, start, end))
     rows = cursor.fetchall()
 
-    return pd.DataFrame(rows, columns=["date", "close_price"])
+    return {row[0]: float(row[1]) for row in rows}
 
 
 def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | str) -> float or None:
