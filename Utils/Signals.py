@@ -4,123 +4,145 @@ import yfinance as yf
 import talib as ta
 import pandas as pd
 import numpy as np
+from abc import ABC, abstractmethod
+from typing import Dict, List, Tuple, Callable, Any
 
-def calculate_rsi_signal(data, tickers, date, period=14):
-    """
-    Calculate the RSI for each stock in the portfolio and return a single signal score for each company.
+class SignalBase(ABC):
+    """Abstract base class for all signals"""
     
-    Parameters:
-    - data: A DataFrame containing the 'Close' prices for each stock (tickers as columns).
-    - tickers: A list of ticker symbols.
-    - date: The date to calculate the RSI for.
-    - period: The lookback period for the RSI calculation (default is 14).
+    def __init__(self, name: str, parameters: Dict = None):
+        self.name = name
+        self.parameters = parameters or {}
     
-    Returns:
-    - A list of signal scores for each stock, corresponding to the tickers.
-    """
-    # Convert the date to a pandas datetime object for comparison
-    date = pd.to_datetime(date)
+    @abstractmethod
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+        """Calculate signal for given tickers on specific date"""
+        pass
+    
+    def get_lookback_period(self) -> int:
+        """Return minimum lookback period needed for this signal"""
+        return 0
 
-    # Initialize an empty list to hold the signal scores
-    signal_scores = []
+class SignalRegistry:
+    """Registry to manage all available signals"""
+    
+    def __init__(self):
+        self._signals: Dict[str, SignalBase] = {}
+    
+    def register(self, signal: SignalBase):
+        """Register a new signal"""
+        self._signals[signal.name] = signal
+    
+    def get_signal(self, name: str) -> SignalBase:
+        """Get signal by name"""
+        return self._signals.get(name)
+    
+    def list_signals(self) -> List[str]:
+        """List all available signal names"""
+        return list(self._signals.keys())
 
-    # Loop through each stock (ticker) in the data DataFrame
-    for ticker in tickers:
-        # Get the closing prices for the ticker
-        close_prices = data['Close'][ticker]
+
+
+
+
+class RSISignal(SignalBase):
+    def __init__(self, period: int = 14):
+        super().__init__("RSI", {"period": period})
+        self.period = period
+    
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+        import talib as ta
+        print("Calculating RSI signals... for date:", date)
+        signal_scores = []
         
-        # Calculate RSI using TA-Lib (you can adjust the time period if needed)
-        rsi = ta.RSI(close_prices, timeperiod=period)
+        for ticker in tickers: 
+            try:
+                close_prices = data['Close'][ticker]
+                rsi = ta.RSI(close_prices, timeperiod=self.period)
+                
+                #date = date.normalize()  # Ensure date is in correct format
+                if date in rsi.index:
+                    # Convert RSI to signal score (0-100 to -1 to 1, with 50 as neutral)
+                    rsi_value = rsi.loc[date]
+                    signal_score = (rsi_value - 50) / 50  # Normalize to [-1, 1]
+                    signal_scores.append((ticker, signal_score))
+                else:
+                    signal_scores.append((ticker, np.nan))
+            except Exception as e:
+                signal_scores.append((ticker, np.nan))
+                
+        return signal_scores
+    
+    def get_lookback_period(self) -> int:
+        return self.period + 10  # Extra buffer for calculation     
+
+class MACDSignal(SignalBase):
+    def __init__(self, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9):
+        super().__init__("MACD", {
+            "fast_period": fast_period,
+            "slow_period": slow_period, 
+            "signal_period": signal_period
+        })
+        self.fast_period = fast_period
+        self.slow_period = slow_period
+        self.signal_period = signal_period
+    
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+        import talib as ta
+        print("Calculating MACD signals... for date:", date)
+        signal_scores = []
         
-        # Check if the date is within the available data range
-        if date in rsi.index:
-            # Get the RSI value for the specific date
-            signal_scores.append([ticker, rsi.loc[date]])
-        else:
-            # Handle the case when the date is not available in the data range
-            signal_scores.append([ticker, np.nan])
-            
-    return signal_scores
-
-
-
-def calculate_macd_signal(data, tickers, date):
-    """
-    Calculate the MACD signal for each stock in the portfolio on a specific date and return a signal score for each company.
+        for ticker in tickers:
+            try:
+                close_prices = data['Close'][ticker]
+                macd, macdsignal, _ = ta.MACD(close_prices, 
+                                            fastperiod=self.fast_period,
+                                            slowperiod=self.slow_period, 
+                                            signalperiod=self.signal_period)
+                
+                if date in macd.index:
+                    macd_histogram = macd.loc[date] - macdsignal.loc[date]
+                    # Normalize MACD histogram (this may need adjustment based on your data)
+                    signal_scores.append((ticker, macd_histogram))
+                else:
+                    signal_scores.append((ticker, np.nan))
+            except Exception as e:
+                signal_scores.append((ticker, np.nan))
+                
+        return signal_scores
     
-    Parameters:
-    - data: A DataFrame containing the 'Close' prices for each stock (tickers as columns).
-    - tickers: List of stock tickers to calculate MACD for.
-    - date: The date (as a string in 'YYYY-MM-DD' format) to get the MACD for.
-    
-    Returns:
-    - A list of signal scores for each stock, corresponding to the tickers.
-    """
-    # Convert the date to a pandas datetime object for comparison
-    date = pd.to_datetime(date)
-    
-    # Initialize an empty list to hold the signal scores
-    signal_scores = []
+    def get_lookback_period(self) -> int:
+        return self.slow_period + self.signal_period + 10
 
-    # Loop through each stock (ticker) in the data DataFrame
-    for ticker in tickers:
-        # Get the closing prices for the ticker
-        close_prices = data['Close'][ticker]
+
+class SMASignal(SignalBase):
+    def __init__(self, short_period: int = 50, long_period: int = 200):
+        super().__init__("SMA", {"short_period": short_period, "long_period": long_period})
+        self.short_period = short_period
+        self.long_period = long_period
+    
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+        import talib as ta
+        print("Calculating SMA signals... for date:", date)
+        signal_scores = []
         
-        # Calculate MACD and Signal Line using TA-Lib
-        macd, macdsignal, _ = ta.MACD(close_prices, fastperiod=12, slowperiod=26, signalperiod=9)
-        
-        # Check if the date is within the available data range
-        if date in macd.index:
-            # Get the MACD Histogram value for the specific date
-            macd_histogram = macd.loc[date] - macdsignal.loc[date]  # MACD Histogram = MACD - Signal Line
-            signal_scores.append([ticker, macd_histogram])
-        else:
-            # Handle the case when the date is not available in the data range
-            signal_scores.append([ticker, np.nan])
+        for ticker in tickers:
+            try:
+                close_prices = data['Close'][ticker]
+                sma_short = ta.SMA(close_prices, timeperiod=self.short_period)
+                sma_long = ta.SMA(close_prices, timeperiod=self.long_period)
+                
+                if date in sma_short.index and date in sma_long.index:
+                    # Calculate percentage difference
+                    current_price = close_prices.loc[date]
+                    sma_diff = (sma_short.loc[date] - sma_long.loc[date]) / current_price
+                    signal_scores.append((ticker, sma_diff))
+                else:
+                    signal_scores.append((ticker, np.nan))
+            except Exception as e:
+                signal_scores.append((ticker, np.nan))
+                
+        return signal_scores
     
-    return signal_scores
-
-
-def calculate_sma_signal(data, tickers, date):
-    """
-    Calculate the SMA crossover signal for each stock in the portfolio on a specific date
-    and return a signal score for each company.
-    
-    Parameters:
-    - data: A DataFrame containing the 'Close' prices for each stock (tickers as columns).
-    - tickers: List of stock tickers to calculate SMA crossover for.
-    - date: The date (as a string in 'YYYY-MM-DD' format) to get the SMA crossover for.
-    
-    Returns:
-    - A list of signal scores for each stock, corresponding to the tickers.
-    """
-    # Convert the date to a pandas datetime object for comparison
-    date = pd.to_datetime(date)
-    
-    # Initialize an empty list to hold the signal scores
-    signal_scores = []
-
-    # Loop through each stock (ticker) in the data DataFrame
-    for ticker in tickers:
-        # Get the closing prices for the ticker
-        close_prices = data['Close'][ticker]
-        
-        # Calculate the 50-period and 200-period Simple Moving Averages (SMA)
-        sma_50 = ta.SMA(close_prices, timeperiod=50)
-        sma_200 = ta.SMA(close_prices, timeperiod=200)
-
-        # Check if the date is within the available data range
-        if date in sma_50.index and date in sma_200.index:
-            # Calculate the difference between the 50-period and 200-period SMAs
-            sma_diff = sma_50.loc[date] - sma_200.loc[date]
-            
-            # Append the ticker and the SMA difference to the signal_scores
-
-            signal_scores.append([ticker, sma_diff])  # Score is just the difference between SMAs
-        else:
-            # Handle the case when the date is not available in the data range
-            signal_scores.append([ticker, np.nan])
-    
-    #print("SIGNAL SCORES", signal_scores)
-    return signal_scores
+    def get_lookback_period(self) -> int:
+        return self.long_period + 10

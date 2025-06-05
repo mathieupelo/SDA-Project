@@ -16,28 +16,37 @@ def normalize_to_01(values):
         return np.zeros_like(values)  # If all values are the same, return a zero array
     return (values - min_val) / (max_val - min_val)
 
+def combine_signals_from_df(df_scores: pd.DataFrame, tickers: List[str], signal_weights: Dict[str, float]) -> pd.DataFrame:
+    # Prepare a DataFrame to store combined signals with the same index as input
+    combined_scores = pd.DataFrame(index=df_scores.index)
 
-def combine_signals(signal_weights, signal_scores):
-    #print("COMBINE SIGNALS 2")
-    rsi, macd, sma = signal_scores
-    w_rsi, w_macd, w_sma = signal_weights
-    
-    #print(f"rsi : {rsi}, macd : {macd}, sma : {sma}")
+    for ticker in tickers:
+        weighted_sum = pd.Series(0.0, index=df_scores.index)
+        total_weight = 0.0
 
-    # Normalize each signal
-    rsi_norm = normalize_to_01(rsi)
-    macd_norm = normalize_to_01(macd)
-    sma_norm = normalize_to_01(sma)
+        for signal_name, weight in signal_weights.items():
+            col = (signal_name, ticker)
+            if col in df_scores.columns:
+                weighted_sum += df_scores[col] * weight
+                total_weight += weight
+            else:
+                print(f"Warning: column {col} not found in df_scores")
 
-    #print(f"rsi2 : {rsi_norm}, macd2 : {macd_norm}, sma2 : {sma_norm}")
-    
-    # Combine the signals using weighted sum
-    combined = rsi_norm * w_rsi + macd_norm * w_macd + sma_norm * w_sma
-    
-    # Clip extreme values if needed to avoid outliers
-    combined = np.clip(combined, -5, 5)
-    
-    return combined
+        # Normalize by total weight (in case some signals are missing)
+        if total_weight > 0:
+            weighted_sum /= total_weight
+
+        # Assign combined signal for this ticker
+        combined_scores[ticker] = weighted_sum
+
+    # Optional: add date column if needed, assuming it's in df_scores as ('date', '')
+    if ('date', '') in df_scores.columns:
+        combined_scores[('date', '')] = df_scores[('date', '')]
+
+    # If date is index, no need to add it here
+
+    return combined_scores
+
 
 class Portfolio_Solver():
     def __init__(self, penalty_factor=0.00001, max_weight_threshold=0.3):
