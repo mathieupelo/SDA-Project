@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from cvxopt import matrix, solvers
-from jupyterlab.utils import deprecated
+
 from pandas import DataFrame
 
 from Utils.Signals import *
@@ -16,38 +16,6 @@ def normalize_to_01(values):
         return np.zeros_like(values)  # If all values are the same, return a zero array
     return (values - min_val) / (max_val - min_val)
 
-def combine_signals_from_df(df_scores: pd.DataFrame, tickers: List[str], signal_weights: Dict[str, float]) -> pd.DataFrame:
-    # Prepare a DataFrame to store combined signals with the same index as input
-    combined_scores = pd.DataFrame(index=df_scores.index)
-
-    for ticker in tickers:
-        weighted_sum = pd.Series(0.0, index=df_scores.index)
-        total_weight = 0.0
-
-        for signal_name, weight in signal_weights.items():
-            col = (signal_name, ticker)
-            if col in df_scores.columns:
-                weighted_sum += df_scores[col] * weight
-                total_weight += weight
-            else:
-                print(f"Warning: column {col} not found in df_scores")
-
-        # Normalize by total weight (in case some signals are missing)
-        if total_weight > 0:
-            weighted_sum /= total_weight
-
-        # Assign combined signal for this ticker
-        combined_scores[ticker] = weighted_sum
-
-    # Optional: add date column if needed, assuming it's in df_scores as ('date', '')
-    if ('date', '') in df_scores.columns:
-        combined_scores[('date', '')] = df_scores[('date', '')]
-
-    # If date is index, no need to add it here
-
-    return combined_scores
-
-
 class Portfolio_Solver():
     def __init__(self, penalty_factor=0.00001, max_weight_threshold=0.3):
         self.method = ""
@@ -55,7 +23,6 @@ class Portfolio_Solver():
         self.max_weight_threshold = max_weight_threshold
         self.risk_aversion = 0.5  # λ: Controls return vs. risk trade-off
 
-    @deprecated
     def solve_signal_portfolio_MVO(self, tickers, var_data: DataFrame, signal_scores):
         """
         Mean-Variance Optimization with Diversification Constraints.
@@ -105,7 +72,6 @@ class Portfolio_Solver():
 
         return weights
 
-    @deprecated
     def show_portfolio_weights(self, tickers, portfolio_weights):
         plt.figure(figsize=(10,6))
         plt.bar(tickers, portfolio_weights)
@@ -113,7 +79,6 @@ class Portfolio_Solver():
         plt.ylabel("Weight")
         plt.show()
 
-    @deprecated
     def calculate_portfolio_returns(self, tickers, data, weights, start_date='2020-01-01', time_period=252):
         #TODO: Add a check that time_period == 1
         # if it is, we do not do total_return = cumulative_returns[-1] - 1  # The final cumulative return minus 1 (for initial value)
@@ -145,9 +110,6 @@ class Portfolio_Solver():
 
         return cumulative_returns, total_return, annualized_return
     
-
-
-    @deprecated
     def show_portfolio_performance(self, cumulative_returns, data, start_date, end_date):
         # Filter data for the specific date range
         filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
@@ -170,8 +132,6 @@ class Portfolio_Solver():
         plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
         plt.show()
 
-
-    @deprecated
     def calculate_eval_returns(self, tickers, data, df_eval, W):
         # Now, iterate over df_step1 to calculate combined scores, portfolio weights, and returns
         dataset_returns_ridge = []

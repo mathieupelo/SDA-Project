@@ -7,6 +7,36 @@ import numpy as np
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Callable, Any
 
+def combine_signals_from_df(df_scores: pd.DataFrame, tickers: List[str], signal_weights: Dict[str, float]) -> pd.DataFrame:
+    # Prepare a DataFrame to store combined signals with the same index as input
+    combined_scores = pd.DataFrame(index=df_scores.index)
+
+    for ticker in tickers:
+        weighted_sum = pd.Series(0.0, index=df_scores.index)
+        total_weight = 0.0
+
+        for signal_name, weight in signal_weights.items():
+            col = (signal_name, ticker)
+            if col in df_scores.columns:
+                weighted_sum += df_scores[col] * weight
+                total_weight += weight
+            else:
+                print(f"Warning: column {col} not found in df_scores")
+
+        # Normalize by total weight (in case some signals are missing)
+        if total_weight > 0:
+            weighted_sum /= total_weight
+
+        # Assign combined signal for this ticker
+        combined_scores[ticker] = weighted_sum
+
+    # Add the date column at the beginning if available
+    if ('date', '') in df_scores.columns:
+        combined_scores['date'] = df_scores[('date', '')]
+        combined_scores.set_index('date', inplace=True)
+
+    return combined_scores
+
 class SignalBase(ABC):
     """Abstract base class for all signals"""
     
