@@ -10,12 +10,16 @@ import numpy as np
 from typing import Dict, List, Tuple, Callable, Any
 import itertools
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as dt
 from Utils.Signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
 from Utils.Solver import Portfolio_Solver
 import logging
 from Utils.Solver import *
+from data.stocks import *
 
+from data.stock_snapshot import generate_snapshots
+from data.utils import connect_to_database
+from data.stocks import get_stocks, get_stock_price_table
 
 # ============================================================================
 # 1. SIGNAL INTERFACE AND REGISTRY
@@ -37,6 +41,7 @@ def setup_backtesting_system():
 
 def run_backtest():
     tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
+    tickers = ['AAPL', 'MSFT']
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
     signal_registry = setup_backtesting_system()
@@ -50,16 +55,21 @@ def run_backtest():
     # Initialize an empty list to store the rows for the first DataFrame
     dataset_scores = []
 
+    # Initialize signal registry
+    signal_registry = SignalRegistry()
+    
+    # Register available signals
+    signal_registry.register(RSISignal(period=14))
+    signal_registry.register(MACDSignal())
+    signal_registry.register(SMASignal())
+
+    
+
+
     # Step 1: Create the DataFrame with rsi_scores, macd_scores, and sma_scores
     for date in date_range_eval:
         print(f"Processing date: {date}")
-        # Initialize signal registry
-        signal_registry = SignalRegistry()
-        
-        # Register available signals
-        signal_registry.register(RSISignal(period=14))
-        signal_registry.register(MACDSignal())
-        signal_registry.register(SMASignal())
+
 
         row = {('date', ''): date}
 
@@ -88,9 +98,21 @@ def run_backtest():
     }
 
     combined_df = combine_signals_from_df(df, tickers, signal_weights)
-    print(combined_df.head())
+    print("combined_df")
+    print(combined_df)
+    # For every date, we create a portfolio based on the combined scores and we calculate the returns
 
-    
+
+    conn = connect_to_database('192.168.0.165')
+       
+    for date, row in combined_df.iterrows():
+        print(row.to_dict())
+
+
+        #print(f"Processing date: {date['date']}")
+        #combined_scores = combined_df.loc[date].to_dict()
+        #print(combined_scores)
+
 if __name__ == "__main__":
     run_backtest()
 
