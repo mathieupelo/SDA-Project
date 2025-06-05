@@ -1,5 +1,5 @@
 ﻿from data.portfolios import Portfolio
-from data.stock_metadata import StockSnapshot
+from data.stock_snapshot import StockSnapshot
 from data.stocks import Stock
 
 
@@ -12,4 +12,3 @@ class PortfolioSolver:
         
         
     def solve(self) -> Portfolio:
-

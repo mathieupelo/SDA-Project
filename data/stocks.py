@@ -1,13 +1,15 @@
-﻿import pandas as pd
+﻿import uuid
+
+import pandas as pd
 from mysql.connector.abstracts import MySQLConnectionAbstract
 from typing import List, Dict
 from datetime import date
 
 
 class Stock:
-    def __init__(self, stock_id: str, name: str, ticker: str):
-        self._id = stock_id
-        self._name = name
+    def __init__(self, ticker: str, stock_id: str = None, name: str = None):
+        self._id = stock_id or str(uuid.uuid1())
+        self._name = name or f"{ticker}_TEST"
         self._ticker = ticker
 
     @property
@@ -68,23 +70,24 @@ def get_stock(conn: MySQLConnectionAbstract, ticker: str) -> Stock | None:
     return None
 
 
-def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date, end: date) -> Dict[date, float]:
+def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date, end: date) \
+        -> dict[date, float] | None:
     """
-        Fetches historical stock prices for a given stock_id and date range.
+    Fetches historical stock prices for a given stock_id and date range.
 
-        Parameters:
-            stock_id (str): UUID of the stock in the stock table.
-            conn: MySQL connection object.
-            start (str or datetime.date): Start date (inclusive), e.g. '2020-01-01'.
-            end (str or datetime.date): End date (inclusive), e.g. '2024-12-31'.
+    Parameters:
+        stock_id (str): UUID of the stock in the stock table.
+        conn: MySQL connection object.
+        start (str or datetime.date): Start date (inclusive), e.g. '2020-01-01'.
+        end (str or datetime.date): End date (inclusive), e.g. '2024-12-31'.
 
-        Returns:
-            pd.DataFrame: A DataFrame with columns: date, close_price
-        """
+    Returns:
+        dict[date, float] | None: A dict with {date: close_price} or None if no rows are found.
+    """
     sql = """
           SELECT date, close_price
           FROM stock_price
-          WHERE stock_id = %s \
+          WHERE stock_id = %s
             AND date BETWEEN %s AND %s
           ORDER BY date
           """
@@ -92,6 +95,9 @@ def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: d
     cursor = conn.cursor()
     cursor.execute(sql, (stock_id, start, end))
     rows = cursor.fetchall()
+
+    if not rows:
+        return None
 
     return {row[0]: float(row[1]) for row in rows}
 
