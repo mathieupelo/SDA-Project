@@ -25,23 +25,3 @@ class StockSnapshot:
         return self._price_history
 
 
-
-def generate_snapshots(
-    alpha_values: dict[str, float],
-    ticker_to_stock: dict[str, Stock],
-    price_histories: dict[str, dict[date, float]]
-) -> dict[Stock, StockSnapshot]:
-
-    result = { }
-
-    for ticker, alpha_score in alpha_values.items():
-        stock = ticker_to_stock.get(ticker) or Stock(ticker)
-        price_history = price_histories.get(ticker)
-        if not price_history:
-            continue
-
-        result[stock] = StockSnapshot(stock, alpha_score, price_history)
-
-    return result
-
-

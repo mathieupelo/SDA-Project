@@ -7,9 +7,9 @@ from datetime import date
 
 
 class Stock:
-    def __init__(self, ticker: str, stock_id: str = None, name: str = None):
-        self._id = stock_id or str(uuid.uuid1())
-        self._name = name or f"{ticker}_TEST"
+    def __init__(self, ticker: str, stock_id: str, name: str):
+        self._id = stock_id
+        self._name = name
         self._ticker = ticker
 
     @property
