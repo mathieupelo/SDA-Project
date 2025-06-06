@@ -3,7 +3,7 @@ from typing import List
 
 
 class Stock:
-    def __init__(self, ticker: str, stock_id: str, name: str):
+    def __init__(self, stock_id: str, name: str, ticker: str):
         self._id = stock_id
         self._name = name
         self._ticker = ticker
