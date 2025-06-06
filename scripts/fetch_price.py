@@ -7,13 +7,16 @@ from data.database import connect_to_database
 from data.stocks import get_stocks
 
 
-def fetch_prices(host: str, since: date | None, tickers: List[str] | None):
+def fetch_prices(host: str, since: date | None = None, tickers: List[str] | None = None):
 
     conn = connect_to_database(host)
     stocks = get_stocks(conn)
     today = date.today()
     insert_sql = "INSERT IGNORE INTO stock_price (stock_id, date, close_price) VALUES (%s, %s, %s)"
     since = since or date(1900, 1, 1)
+
+    if tickers is not None:
+        stocks = [stock for stock in stocks if stock.ticker in tickers]
 
     for stock in stocks:
         try:

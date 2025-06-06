@@ -7,6 +7,8 @@ from data.stocks import get_stocks, Stock
 import yfinance as yf
 import pandas as pd
 
+from scripts.fetch_price import fetch_prices
+
 
 class API:
     def __init__(self, host: str):
@@ -15,6 +17,25 @@ class API:
             host: Host address of the database machine.
         """
         self._host = host
+
+
+    def ensure_database_is_up_to_date(self):
+        conn = connect_to_database(self._host)
+        stocks = get_stocks(conn)
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
+        for stock in stocks:
+            last_date = get_last_price_date_for_stock(conn, stock.id)
+
+            # If no price exists at all, start from a reasonable default
+            start_date = (last_date or date(1900, 1, 1)) + timedelta(days=1)
+
+            if start_date > yesterday:
+                continue  # Already up-to-date
+
+            fetch_prices(self._host, tickers=[stock.ticker])
+
 
     def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
         """
@@ -83,11 +104,10 @@ class API:
         stocks = get_stocks(conn)
         known_stocks: List[Stock] = [stock for stock in stocks if stock.ticker in tickers]
         unknown_tickers: List[str] = [t for t in tickers if all(s.ticker != t for s in stocks)]
-
         result: dict[date, dict[str, float]] = defaultdict(dict)
 
         # For tracking dates we pulled from DB only
-        db_dates_seen: set[date] = set()
+        db_dates_seen: dict[str, set[date]] = { }
 
         # --- 1. Fetch from DB for known stocks ---
         if known_stocks:
@@ -96,19 +116,23 @@ class API:
                 SELECT sp.date, s.ticker, sp.close_price
                 FROM stock_price sp
                 JOIN stock s ON sp.stock_id = s.id
-                WHERE s.ticker IN ({placeholders})
+                WHERE s.id IN ({placeholders})
                   AND sp.date BETWEEN %s AND %s
                 ORDER BY sp.date
             """
-            params = [stock.id for stock in known_stocks] + [start_date, end_date]
+            params = [stock.id for stock in known_stocks] + [str(start_date), str(end_date)]
 
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
                 rows = cursor.fetchall()
 
-            for dt, ticker, price in rows:
-                result[dt][ticker] = price
-                db_dates_seen.add(dt)
+            for time, ticker, price in rows:
+                if db_dates_seen.get(ticker) is None:
+                    db_dates_seen[ticker] = set()
+
+                day = pd.Timestamp(time).date()
+                result[day][ticker] = price
+                db_dates_seen[ticker].add(day)
 
         # --- 2. Fetch from Yahoo Finance for unknown stocks ---
         for ticker in unknown_tickers:
@@ -122,8 +146,8 @@ class API:
                 close_series = data['Close'][ticker]
 
                 for time, price in close_series.items():
-                    day = pd.Timestamp(time).date()
-                    result[day][ticker] = price
+                    time = pd.Timestamp(time).date()
+                    result[time][ticker] = price
 
             except Exception as e:
                 print(f"[ERROR] Failed to fetch from yfinance: {ticker} – {e}")
@@ -131,16 +155,12 @@ class API:
         # --- 3. Validate known DB stocks: warn if any date in range is missing for that ticker ---
         expected_dates = {start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)}
 
-        # Build per-ticker date set from DB result
-        ticker_dates_in_db: dict[str, set[date]] = defaultdict(set)
-        for dt, ticker, _ in rows:
-            ticker_dates_in_db[ticker].add(dt)
 
         for stock in known_stocks:
-            present_dates = ticker_dates_in_db.get(stock.ticker, set())
+            present_dates = db_dates_seen.get(stock.ticker, set())
             missing_dates = expected_dates - present_dates
 
-            for d in sorted(missing_dates):
-                print(f"[WARN] Missing DB price data for {stock.ticker} on {d}")
+            for day in sorted(missing_dates):
+                print(f"[WARN] Missing DB price data for {stock.ticker} on {day}")
 
         return dict(result)
