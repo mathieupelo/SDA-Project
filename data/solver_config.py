@@ -3,9 +3,10 @@
             self,
             penalty_factor: float = 0.00001,
             max_weight_threshold: float = 0.3,
-            risk_aversion: float = 1.0):
+            risk_aversion: float = 0.3):
         self._penalty_factor = penalty_factor
         self._max_weight_threshold = max_weight_threshold
+        # Risk aversion factor (0.0 = no risk, 1.0 = high risk)
         self._risk_aversion = risk_aversion
 
     @property

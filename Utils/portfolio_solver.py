@@ -56,6 +56,7 @@ class PortfolioSolver:
         })
 
         # === Compute daily returns ===
+        # TODO: Drop all na instead of just dropna?
         var_returns = price_data.pct_change().dropna()
 
         # === Compute expected returns (mu) ===
@@ -71,7 +72,8 @@ class PortfolioSolver:
 
         # === Optimization ===
         p = matrix(self._config.risk_aversion * sigma)
-        q = matrix(-mu - alpha_scores)
+        # Scale expected returns + signals by (1 - alpha)
+        q = matrix(- (1 - self._config.risk_aversion) * (mu + alpha_scores))
 
         g = np.vstack([
             -np.eye(stock_count),   # No short selling (weights ≥ 0)
