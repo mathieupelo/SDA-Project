@@ -6,14 +6,75 @@ from data.stocks import get_stocks
 import yfinance as yf
 import pandas as pd
 
+
 class API:
     def __init__(self, host: str):
+        """
+        Args:
+            host: Host address of the database machine.
+        """
         self._host = host
 
+    def get_price(self, tickers: List[str], day: date) -> dict[str, float]:
+        """
+        Args:
+            tickers: list of ticker symbols to fetch the price for
+            day: date to fetch the price for
 
+        Returns:
+            the price table indexed by ticker symbol at the given day
+        """
+        conn = connect_to_database(self._host)
+        stocks = get_stocks(conn)
+        known_stocks = {s.ticker: s.id for s in stocks}
+        known_tickers = set(known_stocks.keys())
+
+        tickers_known = [t for t in tickers if t in known_tickers]
+        tickers_unknown = [t for t in tickers if t not in known_tickers]
+
+        result: dict[str, float] = {}
+
+        # --- 1. Query DB for known tickers ---
+        if tickers_known:
+            placeholders = ', '.join(['%s'] * len(tickers_known))
+            sql = f"""
+                    SELECT s.ticker, sp.close_price
+                    FROM stock_price sp
+                    JOIN stock s ON sp.stock_id = s.id
+                    WHERE s.ticker IN ({placeholders})
+                      AND sp.date = %s
+                """
+            params = tickers_known + [day]
+
+            with conn.cursor() as cursor:
+                cursor.execute(sql, params)
+                for ticker, price in cursor.fetchall():
+                    if price is not None:
+                        result[ticker] = float(price)
+
+        # --- 2. Fallback to Yahoo Finance for unknown tickers ---
+        for ticker in tickers_unknown:
+            try:
+                data = yf.download(ticker, start=day, end=day + timedelta(days=1), progress=False)
+                if 'Close' in data and not data['Close'].empty:
+                    value = data['Close'].iloc[0]
+                    if pd.notna(value):
+                        result[ticker] = float(value)
+            except Exception as e:
+                print(f"[ERROR] Failed to fetch {ticker} from yfinance on {day}: {e}")
+
+        return result
 
     def get_price_history(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
+        """
+        Args:
+            tickers: list of ticker symbols to fetch the price_history for
+            start_date: first date to fetch the price_history for
+            end_date: last date to fetch the price_history for
 
+        Returns:
+            the price history table indexed by date, then by ticker symbol
+        """
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
         known_stocks = {s.ticker: s.id for s in stocks}
@@ -82,5 +143,3 @@ class API:
                 print(f"[WARN] Missing DB price data for {ticker} on {d}")
 
         return dict(result)
-
-
