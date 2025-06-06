@@ -17,12 +17,7 @@ class API:
 
     def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
         """
-        Args:
-            tickers: list of ticker symbols to fetch the price for
-            day: date to fetch the price for
-
-        Returns:
-            the price table indexed by ticker symbol at the given day
+        Returns the latest known price for each ticker *at or before* the given day.
         """
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
@@ -38,13 +33,21 @@ class API:
         if tickers_known:
             placeholders = ', '.join(['%s'] * len(tickers_known))
             sql = f"""
-                    SELECT s.ticker, sp.close_price
-                    FROM stock_price sp
-                    JOIN stock s ON sp.stock_id = s.id
-                    WHERE s.ticker IN ({placeholders})
-                      AND sp.date = %s
-                """
-            params = tickers_known + [day]
+                SELECT t.ticker, sp.close_price
+                FROM stock_price sp
+                JOIN stock t ON sp.stock_id = t.id
+                JOIN (
+                    SELECT stock_id, MAX(date) as max_date
+                    FROM stock_price
+                    WHERE date <= %s
+                      AND stock_id IN (
+                          SELECT id FROM stock WHERE ticker IN ({placeholders})
+                      )
+                    GROUP BY stock_id
+                ) AS latest
+                ON sp.stock_id = latest.stock_id AND sp.date = latest.max_date
+            """
+            params = [day] + tickers_known
 
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
@@ -55,15 +58,19 @@ class API:
         # --- 2. Fallback to Yahoo Finance for unknown tickers ---
         for ticker in tickers_unknown:
             try:
-                data = yf.download(ticker, start=day, end=day + timedelta(days=1), progress=False)
+                start_range = day - timedelta(days=30)
+                data = yf.download(ticker, start=start_range, end=day + timedelta(days=1), progress=False)
                 if 'Close' in data and not data['Close'].empty:
-                    value = data['Close'].iloc[0]
-                    if pd.notna(value):
-                        result[ticker] = float(value)
+                    close_series = data['Close'].dropna()
+                    valid_data = close_series[close_series.index <= pd.Timestamp(day)]
+                    if not valid_data.empty:
+                        result[ticker] = valid_data.iloc[-1].item()
             except Exception as e:
-                print(f"[ERROR] Failed to fetch {ticker} from yfinance on {day}: {e}")
+                print(f"[ERROR] Failed to fetch {ticker} from yfinance up to {day}: {e}")
 
         return result
+
+
 
     def get_price_history_for_tickers(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
         """
