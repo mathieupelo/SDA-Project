@@ -56,10 +56,8 @@ class PortfolioSolver:
         })
 
         # === Compute daily returns ===
+        # TODO: Drop all na instead of just dropna?
         var_returns = price_data.pct_change().dropna()
-
-        # === Compute expected returns (mu) ===
-        mu: np.ndarray = var_returns.mean().values.reshape(-1, 1)
 
         # === Compute covariance matrix (sigma) ===
         sigma: np.ndarray = var_returns.cov().values
@@ -71,7 +69,8 @@ class PortfolioSolver:
 
         # === Optimization ===
         p = matrix(self._config.risk_aversion * sigma)
-        q = matrix(-mu - alpha_scores)
+        # Scale expected returns + signals by (1 - alpha)
+        q = matrix(- (1 - self._config.risk_aversion) * (alpha_scores))
 
         g = np.vstack([
             -np.eye(stock_count),   # No short selling (weights ≥ 0)
@@ -96,8 +95,6 @@ class PortfolioSolver:
 
         portfolio_id = str(uuid.uuid1())
         return Portfolio(portfolio_id, creation_date, metadata)
-
-
 
 def construct_portfolio_solver(
         conn: MySQLConnectionAbstract,

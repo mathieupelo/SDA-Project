@@ -15,6 +15,7 @@ from data.database import connect_to_database
 from data.solver_config import SolverConfig
 import itertools
 from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
+from datetime import date as dt
 
 @dataclass
 class BacktestResult:
@@ -81,8 +82,7 @@ class BacktestEngine:
                           tickers: List[str],
                           combination: SignalCombination,
                           config: BacktestConfig) -> BacktestResult:
-        #TODO: Move logic to calculate a single backtest here
-        
+
         date_range_eval = pd.date_range(start=config.start_date, end=config.end_date)
         dataset_scores = []
 
@@ -117,23 +117,16 @@ class BacktestEngine:
         combined_df = combine_signals_from_df(df_scores, tickers, signal_weights)
         combined_df_no_nan = combined_df.dropna(how="all", axis=0)
 
-
-
-
-        print(combined_df_no_nan)
-
+        
+        # Initialize solver configuration for portfolio optimization
         conn = connect_to_database('192.168.0.165')
-        solver_config = SolverConfig(risk_aversion = 1000000)
+        solver_config = SolverConfig(risk_aversion = 1.0)
 
-        from datetime import date as dt
-
+        # TODO : API.getpriceshistory 
         price_histories: dict[str, dict[dt, float]] = {
             ticker: {date.date(): price for date, price in series.dropna().items()}
             for ticker, series in data['Close'].items()
         }
-
-
-        
 
         for date, row in combined_df_no_nan.iterrows():
 
@@ -148,7 +141,6 @@ class BacktestEngine:
             )
 
             portfolio = solver.solve(date)
-
 
             print(portfolio.stocks)
 
