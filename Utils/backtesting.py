@@ -18,6 +18,8 @@ from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
 from datetime import date as dt
 import numpy as np
 from Utils.time_utils import get_date_offset
+from data.api import *
+from data.portfolios import *
 
 @dataclass
 class BacktestResult:
@@ -93,14 +95,16 @@ class BacktestEngine:
                           tickers: List[str],
                           combination: SignalCombination,
                           config: BacktestConfig) -> BacktestResult:
+        
+                        # config: BacktestConfig) -> BacktestResult:
 
         date_range_eval = pd.date_range(start=config.start_date, end=config.end_date)
         dataset_scores = []
-
-        print(data)
+        # Initialize an empty DataFrame to store scores
+        returns_series_timeseries = pd.Series(dtype=float)
+        weights_history = {}
 
         for date in date_range_eval:
-            print(f"Processing date: {date}")
             row = {('date', ''): date}
             
             # Only calculate signals that are in the current combination
@@ -108,7 +112,6 @@ class BacktestEngine:
                 signal = self.signal_registry.get_signal(signal_name)
                 if signal is not None:
                     scores = signal.calculate(data, tickers, date)
-                    print(f"Signal: {signal_name}, Scores: {scores}")
                     
                     for ticker, value in scores:
                         row[(signal_name, ticker)] = value
@@ -130,7 +133,7 @@ class BacktestEngine:
 
         # Initialize solver configuration for portfolio optimization
         conn = connect_to_database('192.168.0.165')
-        solver_config = SolverConfig(risk_aversion = 1.0)
+        solver_config = SolverConfig(risk_aversion = 0)
 
         # TODO : API.getpriceshistory 
         price_histories: dict[str, dict[dt, float]] = {
@@ -141,6 +144,7 @@ class BacktestEngine:
         for date, row in combined_df_no_nan.iterrows():
 
             # TODO: Only keep 1 year of data
+            # !!!!!!!!!!
             price_histories = price_histories.copy() 
 
             solver = construct_portfolio_solver(
@@ -157,8 +161,71 @@ class BacktestEngine:
             evaluation_date = date + offset
             # We check the close date in the future to get the return of the portfolio
 
-            print(evaluation_date)
 
+            weights_series = pd.Series(portfolio.get_weight_table())
+            weights_history[date] = weights_series
+            # Fetch prices from `data['Close']` for both date and evaluation_date
+            try:
+                prices_portfolio = {
+                    ticker: data['Close'][ticker].get(date, None)
+                    for ticker in tickers
+                }
+                prices_evaluation = {
+                    ticker: data['Close'][ticker].get(evaluation_date, None)
+                    for ticker in tickers
+                }
+            except KeyError as e:
+                print(f"Missing ticker in data: {e}")
+                continue  # skip this date
+
+ 
+
+            # Convert to DataFrames
+            df_prices_portfolio = pd.Series(prices_portfolio)
+            df_prices_evaluation = pd.Series(prices_evaluation)
+
+            # Drop missing price data
+            valid_idx = df_prices_portfolio.notna() & df_prices_evaluation.notna()
+            df_prices_portfolio = df_prices_portfolio[valid_idx]
+            df_prices_evaluation = df_prices_evaluation[valid_idx]
+            weights_series = weights_series[valid_idx]
+
+            if len(df_prices_portfolio) == 0:
+                continue  # skip if we have no valid data for this date
+
+            price_pct_change = (df_prices_evaluation - df_prices_portfolio) / df_prices_portfolio
+            # Align them by index
+            returns_series, weights_series = price_pct_change.align(weights_series)
+
+            # Then multiply element-wise and sum
+            weighted_returns = returns_series * weights_series
+
+            portfolio_return = weighted_returns.sum()
+            returns_series_timeseries.at[date] = portfolio_return
+        
+        
+        # ======= Compute Metrics =======
+        returns = returns_series_timeseries.dropna()
+        total_return = (1 + returns).prod() - 1
+        annualized_return = (1 + total_return) ** (252 / len(returns)) - 1 if len(returns) > 0 else 0
+        volatility = returns.std() * (252 ** 0.5)
+        sharpe_ratio = annualized_return / volatility if volatility != 0 else 0
+        cumulative = (1 + returns).cumprod()
+        max_drawdown = (cumulative / cumulative.cummax() - 1).min()
+        win_rate = (returns > 0).mean()
+
+        return BacktestResult(
+            combination_name="+".join(combination),
+            total_return=total_return,
+            annualized_return=annualized_return,
+            sharpe_ratio=sharpe_ratio,
+            max_drawdown=max_drawdown,
+            win_rate=win_rate,
+            volatility=volatility,
+            returns_series=returns_series_timeseries,
+            weights_history=pd.DataFrame(weights_history).T,
+            signal_history=df_scores
+    )
 
             
 

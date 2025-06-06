@@ -155,6 +155,7 @@ def run_single_backtest():
     tickers = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOG', 'TSLA', 'EA', 'SONY']  # Example tickers`
     tickers = ['AAPL', 'MSFT', 'META', 'EA', 'SONY']  # Example tickers`
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
+    #data = yf.download(tickers, start='2019-01-01', end='2020-01-01')
 
     signal_registry = setup_backtesting_system()
 
@@ -167,6 +168,7 @@ def run_single_backtest():
         start_date="2020-01-01",
         end_date="2020-12-31",
         rebalance_frequency="monthly",
+        evaluation_period="yearly",
         holding_period=20
     )
 
@@ -176,7 +178,7 @@ def run_single_backtest():
     signal_combination = ['RSI', 'MACD', 'SMA']  # Example of a single combination
 
     print(f"Backtesting signal combination : {signal_combination}")
-    backtest_engine.run_backtest(
+    backtest_results = backtest_engine.run_backtest(
         tickers=tickers,
         data=data,
         combination=signal_combination,
@@ -184,6 +186,34 @@ def run_single_backtest():
     )
 
     print("Single backtest completed successfully.")
+
+
+    import matplotlib.pyplot as plt
+
+    # Starting with $10,000
+    initial_investment = 10_000
+
+    
+    # Plotting
+    plt.figure(figsize=(12, 6))
+    plt.plot(backtest_results.returns_series.index, initial_investment * (1 + backtest_results.returns_series.values), label='Portfolio Value')
+
+    # Add horizontal line for final value
+    average_return = backtest_results.returns_series.mean()
+    final_value = initial_investment * (1 + average_return)
+    plt.axhline(final_value, color='red', linestyle='--', label=f'Final Value: ${final_value:,.2f}')
+
+    plt.xlabel('Date')
+    plt.ylabel('Portfolio Value ($)')
+    plt.title('Portfolio Value Over Time')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+
+    print("Backtest result displayed successfully.")
+
 
 if __name__ == "__main__":
     run_single_backtest()
