@@ -104,7 +104,7 @@ def construct_portfolio_solver(
         fetch_database: bool = True,
 ) -> PortfolioSolver:
 
-    stock_snapshots: dict[Stock, PortfolioSolver.StockSnapshot] = { }
+    stock_snapshots: dict[Stock, StockSnapshot] = { }
 
     for ticker, alpha_score in alpha_scores.items():
         stock = None
@@ -126,7 +126,7 @@ def construct_portfolio_solver(
         if not price_history:
             continue
 
-        stock_snapshots[stock] = PortfolioSolver.StockSnapshot(alpha_score, price_history)
+        stock_snapshots[stock] = StockSnapshot(alpha_score, price_history)
 
     solver = PortfolioSolver(stock_snapshots, config)
     return solver
