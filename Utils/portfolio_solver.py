@@ -1,6 +1,4 @@
-﻿from collections import defaultdict
-from datetime import date
-from typing import Dict
+﻿from datetime import date
 from cvxopt import matrix, solvers
 from data.portfolios import Portfolio
 from data.stocks import *
@@ -11,23 +9,27 @@ import yfinance as yf
 import numpy as np
 import pandas as pd
 
+
+class StockSnapshot:
+    """
+    Metadata of a stock at a given date. It contains the evaluated alpha_score from the signals pipeline
+    and its price history.
+    """
+
+    def __init__(self, alpha_score: float, price_history: dict[date, float]):
+        self._alpha_score = alpha_score
+        self._price_history = price_history
+
+    @property
+    def alpha_score(self) -> float:
+        return self._alpha_score
+
+    @property
+    def price_history(self) -> dict[date, float]:
+        return self._price_history
+
+
 class PortfolioSolver:
-    class StockSnapshot:
-        """
-        Metadata of a stock at a given date. It contains the evaluated alpha_score from the signals pipeline
-        and its price history.
-        """
-        def __init__(self, alpha_score: float, price_history: dict[date, float]):
-            self._alpha_score = alpha_score
-            self._price_history = price_history
-
-        @property
-        def alpha_score(self) -> float:
-            return self._alpha_score
-
-        @property
-        def price_history(self) -> dict[date, float]:
-            return self._price_history
 
     def __init__(self, stocks: dict[Stock, StockSnapshot], config: SolverConfig):
         self._stocks = stocks
