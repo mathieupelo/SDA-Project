@@ -8,6 +8,7 @@ api = API('localhost')
 tickers = ['AAPL', 'MSFT', 'SONY', 'AMZN', 'GOOG']
 tickers = ['MSFT', 'SONY']
 
-history = api.get_price_history_for_tickers(tickers, date(2010, 1, 1), date(2024, 3, 1))
+api.ensure_database_is_up_to_date()
 
-print(history)
+#history = api.get_price_history_for_tickers(tickers, date(2010, 1, 1), date(2024, 3, 1))
+#print(history)

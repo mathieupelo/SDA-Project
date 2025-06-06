@@ -6,6 +6,7 @@ from data.stock_price import get_last_price_date_for_stock
 from data.stocks import get_stocks, Stock
 import yfinance as yf
 import pandas as pd
+import logging
 
 from scripts.fetch_price import fetch_prices
 
@@ -29,12 +30,14 @@ class API:
             last_date = get_last_price_date_for_stock(conn, stock.id)
 
             # If no price exists at all, start from a reasonable default
-            start_date = (last_date or date(1900, 1, 1)) + timedelta(days=1)
-
-            if start_date > yesterday:
+            since = (last_date or date(1900, 1, 1)) + timedelta(days=1)
+            if since > yesterday:
                 continue  # Already up-to-date
 
-            fetch_prices(self._host, tickers=[stock.ticker])
+            fetch_prices(self._host, tickers=[stock.ticker], since=since)
+            logging.info(f"Updated database price history of {stock.ticker} since {since}")
+
+
 
 
     def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
