@@ -98,8 +98,6 @@ def construct_portfolio_solver(
         conn: MySQLConnectionAbstract,
         alpha_scores: dict[str, float],
         price_histories: dict[str, dict[date, float]],
-        start_date: date,
-        end_date: date,
         config: SolverConfig,
         fetch_database: bool = True,
 ) -> PortfolioSolver:
@@ -108,7 +106,7 @@ def construct_portfolio_solver(
 
     for ticker, alpha_score in alpha_scores.items():
         stock = None
-        price_history = None
+        price_history = price_histories[ticker]
 
         if fetch_database:
             stock = get_stock(conn, ticker)
@@ -118,13 +116,6 @@ def construct_portfolio_solver(
 
         if fetch_database:
             price_histories.get(ticker)
-
-        if not price_history:
-            data = yf.download([ ticker ], start=start_date, end=end_date)
-            price_history = data['Close'][ticker].to_dict()
-
-        if not price_history:
-            continue
 
         stock_snapshots[stock] = StockSnapshot(alpha_score, price_history)
 
