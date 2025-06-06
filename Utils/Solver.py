@@ -6,7 +6,7 @@ from cvxopt import matrix, solvers
 
 from pandas import DataFrame
 
-from Utils.Signals import *
+from Utils.signals import *
 
 # Min-Max Normalization function to scale each signal between 0 and 1
 def normalize_to_01(values):
@@ -57,7 +57,10 @@ class Portfolio_Solver():
 
         # Constraints
         G = -np.eye(n_assets)   # Only non-negative weights constraint
-        h = np.zeros(n_assets)  # w ≥ 0
+        h = np.hstack([
+            np.zeros(n_assets),   # No shorting constraint (w ≥ 0)
+            np.ones(n_assets) * self.max_weight_threshold  # Max per stock
+        ])
 
         # Full investment constraint: sum(w) = 1
         A = matrix(np.ones((1, n_assets)))  
@@ -94,8 +97,8 @@ class Portfolio_Solver():
         # Calculate daily returns for each stock
         returns = data['Close'].pct_change().dropna()
 
-        # Calculate the portfolio returns by multiplying daily returns by the weights
         portfolio_returns = np.dot(returns, weights)
+        # Calculate the portfolio returns by multiplying daily returns by the weights
 
         # Cumulative returns of the portfolio
         cumulative_returns = (1 + portfolio_returns).cumprod()

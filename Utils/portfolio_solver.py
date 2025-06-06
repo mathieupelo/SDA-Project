@@ -74,8 +74,14 @@ class PortfolioSolver:
         p = matrix(self._config.risk_aversion * sigma)
         q = matrix(-mu - alpha_scores)
 
-        g = -np.eye(stock_count)
-        h = np.zeros(stock_count)
+        g = np.vstack([
+            -np.eye(stock_count),   # No short selling (weights ≥ 0)
+            np.eye(stock_count)    # Max weight per asset
+        ])
+        h = np.hstack([
+            np.zeros(stock_count),   # No shorting constraint (w ≥ 0)
+            np.ones(stock_count) * self._config.max_weight_threshold  # Max per stock
+        ])
 
         a = matrix(np.ones((1, stock_count)))
         b = matrix(np.ones(1))

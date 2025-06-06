@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Callable, Any
 import itertools
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date as dt
-from Utils.Signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
+from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
 from Utils.Solver import Portfolio_Solver
 from Utils.Solver import *
 from data.stocks import *
@@ -74,14 +74,6 @@ def run_backtests():
 
         # Register available signals
         
-
-
-
-
-
-
-
-
     """
     start_date_eval = '2019-01-01'
     end_date_eval = '2020-01-01'
@@ -152,7 +144,7 @@ def run_backtests():
 def run_single_backtest():
     print("Running single backtest")
 
-    tickers = ['AAPL', 'MSFT']
+    tickers = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOG']
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
     signal_registry = setup_backtesting_system()
@@ -186,5 +178,3 @@ def run_single_backtest():
 
 if __name__ == "__main__":
     run_single_backtest()
-
-

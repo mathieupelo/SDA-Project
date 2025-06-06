@@ -8,7 +8,7 @@ import unittest
 import pandas as pd
 import numpy as np
 from typing import List, Dict
-from Utils.Signals import combine_signals_from_df
+from Utils.signals import combine_signals_from_df
 
 
 # Assume your function is imported:

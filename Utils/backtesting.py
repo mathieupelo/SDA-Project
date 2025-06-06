@@ -6,12 +6,15 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from Utils.Signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry, combine_signals_from_df
+from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry, combine_signals_from_df
 import logging
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any
 from dataclasses import dataclass
+from data.database import connect_to_database
+from data.solver_config import SolverConfig
 import itertools
+from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
 
 @dataclass
 class BacktestResult:
@@ -58,7 +61,6 @@ class BacktestEngine:
 
     def __init__(self, signal_registry: SignalRegistry, portfolio_solver):
         self.signal_registry = signal_registry
-        self.portfolio_solver = portfolio_solver
         self.logger = logging.getLogger(__name__)
 
     def generate_signal_combinations(self,
@@ -83,6 +85,8 @@ class BacktestEngine:
         
         date_range_eval = pd.date_range(start=config.start_date, end=config.end_date)
         dataset_scores = []
+
+        print(data)
 
         for date in date_range_eval:
             print(f"Processing date: {date}")
@@ -109,14 +113,48 @@ class BacktestEngine:
         signal_weights = {signal_name: 1.0/len(combination) for signal_name in combination}
         
         # Combine signals (you'll need to import this function)
-        # from Utils.Signals import combine_signals_from_df
+        # from Utils.signals import combine_signals_from_df
         combined_df = combine_signals_from_df(df_scores, tickers, signal_weights)
         combined_df_no_nan = combined_df.dropna(how="all", axis=0)
 
-        print(combined_df_no_nan)
-        #for date, row in combined_df.iterrows():
 
-        #    print(row.to_dict())
+
+
+        print(combined_df_no_nan)
+
+        conn = connect_to_database('192.168.0.165')
+        solver_config = SolverConfig()
+
+        from datetime import date as dt
+
+        price_histories: dict[str, dict[dt, float]] = {
+            ticker: {date.date(): price for date, price in series.dropna().items()}
+            for ticker, series in data['Close'].items()
+        }
+
+
+        
+
+        for date, row in combined_df_no_nan.iterrows():
+
+            # TODO: Only keep 1 year of data
+            price_histories = price_histories.copy() 
+
+            solver = construct_portfolio_solver(
+                conn=conn,  # Replace with actual connection if needed
+                alpha_scores=row.to_dict(),  # Assuming row contains alpha scores
+                price_histories=price_histories,  # Replace with actual price histories if needed
+                start_date=config.start_date,
+                end_date=config.end_date,
+                config=solver_config
+            )
+
+            portfolio = solver.solve(date)
+
+
+            print(portfolio.stocks)
+
+
             
 
 
