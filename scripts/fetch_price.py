@@ -1,7 +1,7 @@
 ﻿import mysql.connector
 import yfinance as yf
 from datetime import date as datetime
-from data.utils import connect_to_database
+from data.database import connect_to_database
 from data.stocks import get_stocks
 
 def fetch_prices(host: str):

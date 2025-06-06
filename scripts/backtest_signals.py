@@ -18,8 +18,10 @@ from Utils.Solver import *
 from data.stocks import *
 
 from data.stock_snapshot import generate_snapshots
-from data.utils import connect_to_database
-from data.stocks import get_stocks, get_stock_price_table
+from data.database import connect_to_database
+from data.stocks import get_stocks
+from data.stock_price import get_stock_price_table
+
 
 # ============================================================================
 # 1. SIGNAL INTERFACE AND REGISTRY

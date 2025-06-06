@@ -1,9 +1,10 @@
 ﻿from collections import defaultdict
+from datetime import date
+from typing import Dict
 from cvxopt import matrix, solvers
 from data.portfolios import Portfolio
-from data.stock_snapshot import StockSnapshot
 from data.stocks import *
-from data.utils import *
+from data.database import *
 from data.solver_config import SolverConfig
 import uuid
 import yfinance as yf
@@ -11,6 +12,23 @@ import numpy as np
 import pandas as pd
 
 class PortfolioSolver:
+    class StockSnapshot:
+        """
+        Metadata of a stock at a given date. It contains the evaluated alpha_score from the signals pipeline
+        and its price history.
+        """
+        def __init__(self, alpha_score: float, price_history: dict[date, float]):
+            self._alpha_score = alpha_score
+            self._price_history = price_history
+
+        @property
+        def alpha_score(self) -> float:
+            return self._alpha_score
+
+        @property
+        def price_history(self) -> dict[date, float]:
+            return self._price_history
+
     def __init__(self, stocks: dict[Stock, StockSnapshot], config: SolverConfig):
         self._stocks = stocks
         self._config = config
@@ -23,25 +41,10 @@ class PortfolioSolver:
     def config(self) -> SolverConfig:
         return self._config
 
-    def get_price_history_table(self) -> dict[str, dict[date, float]]:
-        flattened_snapshots = defaultdict(dict)
-        for stock, snapshot in self._stocks.items():
-            ticker = stock.ticker
-            for dt, price in snapshot.price_history.items():
-                flattened_snapshots[ticker][dt] = price
-
-        return dict(flattened_snapshots)
-
-
-    def get_alpha_scores_table(self) -> dict[str, float]:
-        return {
-            stock.ticker: snapshot.alpha_score
-            for stock, snapshot in self._stocks.items()
-        }
-
-
     def solve(self, creation_date: date) -> Portfolio:
-
+        """
+            Solve the signal data to predict the most performant portfolio
+        """
         stock_list = list(self._stocks.keys())
         stock_count = len(stock_list)
 
@@ -99,7 +102,7 @@ def construct_portfolio_solver(
         fetch_database: bool = True,
 ) -> PortfolioSolver:
 
-    stock_snapshots: dict[Stock, StockSnapshot] = { }
+    stock_snapshots: dict[Stock, PortfolioSolver.StockSnapshot] = { }
 
     for ticker, alpha_score in alpha_scores.items():
         stock = None
@@ -121,7 +124,7 @@ def construct_portfolio_solver(
         if not price_history:
             continue
 
-        stock_snapshots[stock] = StockSnapshot(stock, alpha_score, price_history)
+        stock_snapshots[stock] = PortfolioSolver.StockSnapshot(alpha_score, price_history)
 
     solver = PortfolioSolver(stock_snapshots, config)
     return solver
