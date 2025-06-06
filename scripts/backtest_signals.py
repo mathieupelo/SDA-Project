@@ -13,11 +13,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, date as dt
 from Utils.Signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
 from Utils.Solver import Portfolio_Solver
-import logging
 from Utils.Solver import *
 from data.stocks import *
-
-from data.stock_snapshot import generate_snapshots
+from Utils.backtesting import *
 from data.utils import connect_to_database
 from data.stocks import get_stocks, get_stock_price_table
 
@@ -39,14 +37,50 @@ def setup_backtesting_system():
     
     return signal_registry
 
-def run_backtest():
+def run_backtests():
     tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
     tickers = ['AAPL', 'MSFT']
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
     signal_registry = setup_backtesting_system()
+
+    # Before callinb BacktestEngine, make sure we have a signal reistry and the signals registered on
     portfolio_solver = Portfolio_Solver()
-    
+    backtest_engine = BacktestEngine(signal_registry, portfolio_solver)
+
+    # Configuration
+    config = BacktestConfig(
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+        rebalance_frequency="monthly",
+        holding_period=20
+    )
+
+    available_signals = signal_registry.list_signals()
+    print(f"available_signals : ", available_signals)
+
+    signal_combinations = backtest_engine.generate_signal_combinations(available_signals, max_signals=3)
+
+    for signal_combination in signal_combinations:
+        print(f"Backtesting signal combination : {signal_combination}")
+        backtest_engine.run_backtest(
+            tickers=tickers,
+            data=data,
+            combination=signal_combination,
+            config=config
+        )
+
+        # Register available signals
+        
+
+
+
+
+
+
+
+
+    """
     start_date_eval = '2019-01-01'
     end_date_eval = '2020-01-01'
     date_range_eval = pd.date_range(start=start_date_eval, end=end_date_eval)
@@ -112,7 +146,43 @@ def run_backtest():
         #print(f"Processing date: {date['date']}")
         #combined_scores = combined_df.loc[date].to_dict()
         #print(combined_scores)
+        """
+def run_single_backtest():
+    print("Running single backtest")
+
+    tickers = ['AAPL', 'MSFT']
+    data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
+
+    signal_registry = setup_backtesting_system()
+
+    # Before callinb BacktestEngine, make sure we have a signal reistry and the signals registered on
+    portfolio_solver = Portfolio_Solver()
+    backtest_engine = BacktestEngine(signal_registry, portfolio_solver)
+
+    # Configuration
+    config = BacktestConfig(
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+        rebalance_frequency="monthly",
+        holding_period=20
+    )
+
+    available_signals = signal_registry.list_signals()
+    print(f"available_signals : ", available_signals)
+
+    signal_combination = ['RSI', 'MACD', 'SMA']  # Example of a single combination
+
+    print(f"Backtesting signal combination : {signal_combination}")
+    backtest_engine.run_backtest(
+        tickers=tickers,
+        data=data,
+        combination=signal_combination,
+        config=config
+    )
+
+    print("Single backtest completed successfully.")
 
 if __name__ == "__main__":
-    run_backtest()
+    run_single_backtest()
+
 
