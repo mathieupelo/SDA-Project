@@ -1,6 +1,6 @@
-﻿import mysql.connector
-import yfinance as yf
-from datetime import date as datetime
+﻿import yfinance as yf
+import pandas as pd
+from datetime import date, timedelta
 from data.database import connect_to_database
 from data.stocks import get_stocks
 
@@ -8,14 +8,53 @@ def fetch_prices(host: str):
     conn = connect_to_database(host)
     stocks = get_stocks(conn)
 
-    sql = "INSERT IGNORE INTO stock_price (stock_id, date, close_price) VALUES (%s, %s, %s)"
-    for stock in stocks:
-        stock_id = stock[0]
-        stock_symbol = stock[1]
-        data = yf.download(stock_symbol, start='1800-01-01', end=datetime.today())
-        close = data['Close'][stock_symbol]
+    today = date.today()
+    insert_sql = "INSERT IGNORE INTO stock_price (stock_id, date, close_price) VALUES (%s, %s, %s)"
 
-        for date, price in close.items():
+    for stock in stocks:
+        try:
+            data = yf.download(stock.ticker, start='1800-01-01', end=today + timedelta(days=1), progress=False)
+
+            # Skip if there's no 'Close' data
+            if data.empty or 'Close' not in data.columns:
+                print(f"[WARN] No data for {stock.ticker}")
+                continue
+
+            # Handle multi-index (e.g., data['Close']['AAPL']) if multiple tickers were fetched
+            if isinstance(data.columns, pd.MultiIndex):
+                if stock.ticker not in data['Close'].columns:
+                    print(f"[WARN] No 'Close' data for {stock.ticker}")
+                    continue
+                close_series = data['Close'][stock.ticker]
+            else:
+                close_series = data['Close']
+
+            # Make sure the index is datetime
+            close_series.index = pd.to_datetime(close_series.index, errors='coerce')
+            close_series = close_series[close_series.index.notnull()]
+
+            # Map date -> price or None
+            close_dict = {
+                d.date(): None if pd.isna(v) else float(v)
+                for d, v in close_series.items()
+            }
+
+            # Fallback if no data
+            if not close_dict:
+                print(f"[INFO] No price entries found for {stock.ticker}")
+                continue
+
+            min_date = min(close_dict.keys())
+            current_date = min_date
+
             with conn.cursor() as cursor:
-                cursor.execute(sql, (stock_id, date, price))
-                conn.commit()
+                while current_date <= today:
+                    price = close_dict.get(current_date)  # May be None
+                    cursor.execute(insert_sql, (stock.id, current_date, price))
+                    current_date += timedelta(days=1)
+
+            conn.commit()
+            print(f"[OK] {stock.ticker} inserted")
+
+        except Exception as e:
+            print(f"[ERROR] Failed for {stock.ticker}: {e}")
