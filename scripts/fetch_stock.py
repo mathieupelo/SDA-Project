@@ -1,6 +1,6 @@
 ﻿import uuid
 import yfinance as yf
-from data.utils import connect_to_database
+from data.database import connect_to_database
 
 def fetch_stocks(ticker_list, host: str):
 

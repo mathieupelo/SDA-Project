@@ -16,8 +16,10 @@ from Utils.Solver import Portfolio_Solver
 from Utils.Solver import *
 from data.stocks import *
 from Utils.backtesting import *
-from data.utils import connect_to_database
-from data.stocks import get_stocks, get_stock_price_table
+from data.database import connect_to_database
+from data.stocks import get_stocks
+from data.stock_price import get_stock_price_table
+
 
 # ============================================================================
 # 1. SIGNAL INTERFACE AND REGISTRY
