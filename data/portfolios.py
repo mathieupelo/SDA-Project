@@ -37,8 +37,8 @@ class Portfolio:
     def stocks(self) -> dict[Stock, StockMetadata]:
         return self._stocks
 
-    # def get_signals(self) -> List[SignalBase]:
-    # def get_weight_table(self) -> pd.DataFrame:
+    def get_weight_table(self) -> dict[str, float]:
+        return { stock.ticker: metadata.weight for stock, metadata in self._stocks.items() }
 
 
 def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio | None:

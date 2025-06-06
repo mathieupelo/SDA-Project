@@ -59,3 +59,15 @@ def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | s
     result = cursor.fetchone()
 
     return result[0] if result else None
+
+
+def get_last_price_date_for_stock(conn : MySQLConnectionAbstract, stock_id: str) -> date | None:
+    """
+    Returns the most recent date (regardless of price being NULL) for which the given stock has a row in stock_price.
+    """
+    sql = "SELECT MAX(date) FROM stock_price WHERE stock_id = %s"
+
+    with conn.cursor() as cursor:
+        cursor.execute(sql, (stock_id,))
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else None
