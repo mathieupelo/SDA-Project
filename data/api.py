@@ -15,7 +15,7 @@ class API:
         """
         self._host = host
 
-    def get_price(self, tickers: List[str], day: date) -> dict[str, float]:
+    def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
         """
         Args:
             tickers: list of ticker symbols to fetch the price for
@@ -65,7 +65,7 @@ class API:
 
         return result
 
-    def get_price_history(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
+    def get_price_history_for_tickers(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
         """
         Args:
             tickers: list of ticker symbols to fetch the price_history for
