@@ -1,19 +1,23 @@
-﻿import yfinance as yf
+﻿from typing import List
+
+import yfinance as yf
 import pandas as pd
 from datetime import date, timedelta
 from data.database import connect_to_database
 from data.stocks import get_stocks
 
-def fetch_prices(host: str):
+
+def fetch_prices(host: str, since: date | None, tickers: List[str] | None):
+
     conn = connect_to_database(host)
     stocks = get_stocks(conn)
-
     today = date.today()
     insert_sql = "INSERT IGNORE INTO stock_price (stock_id, date, close_price) VALUES (%s, %s, %s)"
+    since = since or date(1900, 1, 1)
 
     for stock in stocks:
         try:
-            data = yf.download(stock.ticker, start='1800-01-01', end=today + timedelta(days=1), progress=False)
+            data = yf.download(stock.ticker, start=since, end=today + timedelta(days=1), progress=False)
 
             # Skip if there's no 'Close' data
             if data.empty or 'Close' not in data.columns:

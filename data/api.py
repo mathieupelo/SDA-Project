@@ -2,7 +2,8 @@
 from datetime import date, timedelta
 from typing import List
 from data.database import connect_to_database
-from data.stocks import get_stocks
+from data.stock_price import get_last_price_date_for_stock
+from data.stocks import get_stocks, Stock
 import yfinance as yf
 import pandas as pd
 
@@ -20,18 +21,14 @@ class API:
         Returns the latest known price for each ticker *at or before* the given day.
         """
         conn = connect_to_database(self._host)
-        stocks = get_stocks(conn)
-        known_stocks = {s.ticker: s.id for s in stocks}
-        known_tickers = set(known_stocks.keys())
-
-        tickers_known = [t for t in tickers if t in known_tickers]
-        tickers_unknown = [t for t in tickers if t not in known_tickers]
-
-        result: dict[str, float] = {}
+        stocks: List[Stock] = get_stocks(conn)
+        known_stocks: List[Stock] = [stock for stock in stocks if stock.ticker in tickers]
+        unknown_tickers: List[str] = [t for t in tickers if all(s.ticker != t for s in stocks)]
+        result: dict[str, float] = { }
 
         # --- 1. Query DB for known tickers ---
-        if tickers_known:
-            placeholders = ', '.join(['%s'] * len(tickers_known))
+        if known_stocks:
+            placeholders = ', '.join(['%s'] * len(known_stocks))
             sql = f"""
                 SELECT t.ticker, sp.close_price
                 FROM stock_price sp
@@ -40,14 +37,13 @@ class API:
                     SELECT stock_id, MAX(date) as max_date
                     FROM stock_price
                     WHERE date <= %s
-                      AND stock_id IN (
-                          SELECT id FROM stock WHERE ticker IN ({placeholders})
-                      )
+                      AND close_price is not null
+                      AND stock_id IN ({placeholders})
                     GROUP BY stock_id
                 ) AS latest
                 ON sp.stock_id = latest.stock_id AND sp.date = latest.max_date
             """
-            params = [day] + tickers_known
+            params = [day] + [stock.id for stock in known_stocks]
 
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
@@ -55,8 +51,9 @@ class API:
                     if price is not None:
                         result[ticker] = float(price)
 
+
         # --- 2. Fallback to Yahoo Finance for unknown tickers ---
-        for ticker in tickers_unknown:
+        for ticker in unknown_tickers:
             try:
                 start_range = day - timedelta(days=30)
                 data = yf.download(ticker, start=start_range, end=day + timedelta(days=1), progress=False)
@@ -84,11 +81,8 @@ class API:
         """
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
-        known_stocks = {s.ticker: s.id for s in stocks}
-        known_tickers = set(known_stocks.keys())
-
-        tickers_known = [t for t in tickers if t in known_tickers]
-        tickers_unknown = [t for t in tickers if t not in known_tickers]
+        known_stocks: List[Stock] = [stock for stock in stocks if stock.ticker in tickers]
+        unknown_tickers: List[str] = [t for t in tickers if all(s.ticker != t for s in stocks)]
 
         result: dict[date, dict[str, float]] = defaultdict(dict)
 
@@ -96,8 +90,8 @@ class API:
         db_dates_seen: set[date] = set()
 
         # --- 1. Fetch from DB for known stocks ---
-        if tickers_known:
-            placeholders = ', '.join(['%s'] * len(tickers_known))
+        if known_stocks:
+            placeholders = ', '.join(['%s'] * len(known_stocks))
             sql = f"""
                 SELECT sp.date, s.ticker, sp.close_price
                 FROM stock_price sp
@@ -106,7 +100,7 @@ class API:
                   AND sp.date BETWEEN %s AND %s
                 ORDER BY sp.date
             """
-            params = tickers_known + [start_date, end_date]
+            params = [stock.id for stock in known_stocks] + [start_date, end_date]
 
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
@@ -117,7 +111,7 @@ class API:
                 db_dates_seen.add(dt)
 
         # --- 2. Fetch from Yahoo Finance for unknown stocks ---
-        for ticker in tickers_unknown:
+        for ticker in unknown_tickers:
             try:
                 data = yf.download(ticker, start=start_date, end=end_date + timedelta(days=1), progress=False)
                 if 'Close' not in data or data['Close'].empty:
@@ -142,11 +136,11 @@ class API:
         for dt, ticker, _ in rows:
             ticker_dates_in_db[ticker].add(dt)
 
-        for ticker in tickers_known:
-            present_dates = ticker_dates_in_db.get(ticker, set())
+        for stock in known_stocks:
+            present_dates = ticker_dates_in_db.get(stock.ticker, set())
             missing_dates = expected_dates - present_dates
 
             for d in sorted(missing_dates):
-                print(f"[WARN] Missing DB price data for {ticker} on {d}")
+                print(f"[WARN] Missing DB price data for {stock.ticker} on {d}")
 
         return dict(result)
