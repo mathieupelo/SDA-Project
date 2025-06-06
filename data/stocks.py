@@ -26,6 +26,9 @@ class Stock:
     def __eq__(self, other):
         return self.id == other.id and self.ticker == other.ticker and self.name == other.name
 
+    def __repr__(self) -> str:
+        return f"{self._ticker}"
+
 
 def get_stocks(conn: MySQLConnectionAbstract) -> List[Stock]:
     """

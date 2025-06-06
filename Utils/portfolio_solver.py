@@ -5,7 +5,6 @@ from data.stocks import *
 from data.database import *
 from data.solver_config import SolverConfig
 import uuid
-import yfinance as yf
 import numpy as np
 import pandas as pd
 
@@ -118,7 +117,7 @@ def construct_portfolio_solver(
             stock = get_stock(conn, ticker)
 
         if not stock:
-            stock = Stock(str(uuid.uuid1()), ticker, f"{ticker}_TEST")
+            stock = Stock(str(uuid.uuid1()), f"{ticker}_TEST", ticker)
 
         if fetch_database:
             price_histories.get(ticker)
