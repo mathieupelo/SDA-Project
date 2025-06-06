@@ -117,16 +117,10 @@ class BacktestEngine:
         combined_df = combine_signals_from_df(df_scores, tickers, signal_weights)
         combined_df_no_nan = combined_df.dropna(how="all", axis=0)
 
-
-
-
-        print(combined_df_no_nan)
-
         
-
         # Initialize solver configuration for portfolio optimization
         conn = connect_to_database('192.168.0.165')
-        solver_config = SolverConfig(risk_aversion = 0.0)
+        solver_config = SolverConfig(risk_aversion = 1.0)
 
         # TODO : API.getpriceshistory 
         price_histories: dict[str, dict[dt, float]] = {
