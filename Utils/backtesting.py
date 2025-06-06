@@ -123,7 +123,7 @@ class BacktestEngine:
         print(combined_df_no_nan)
 
         conn = connect_to_database('192.168.0.165')
-        solver_config = SolverConfig()
+        solver_config = SolverConfig(risk_aversion = 1000000)
 
         from datetime import date as dt
 
@@ -144,8 +144,6 @@ class BacktestEngine:
                 conn=conn,  # Replace with actual connection if needed
                 alpha_scores=row.to_dict(),  # Assuming row contains alpha scores
                 price_histories=price_histories,  # Replace with actual price histories if needed
-                start_date=config.start_date,
-                end_date=config.end_date,
                 config=solver_config
             )
 

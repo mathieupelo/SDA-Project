@@ -144,7 +144,15 @@ def run_backtests():
 def run_single_backtest():
     print("Running single backtest")
 
-    tickers = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOG']
+    # TODO: Call function instead
+    conn = connect_to_database('192.168.0.165')
+    stocks = get_stocks(conn)
+    tickers = [stock.ticker for stock in stocks]
+    
+    #tickers = ['AMZN', 'GOOG', 'META']  # Add S&P 500 index as a benchmark
+    #tickers = get_stocks_universe("Universe_name")
+
+    tickers = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOG', 'TSLA', 'EA', 'SONY']  # Example tickers`
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
     signal_registry = setup_backtesting_system()
