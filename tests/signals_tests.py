@@ -25,13 +25,13 @@ class TestCombineSignalsFromDF(unittest.TestCase):
             [(sig, tic) for sig in signals for tic in tickers]
         )
         
-        data = [
+        signal_scores = [
             [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],  # Day 1
             [0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # Day 2
             [0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # Day 3
         ]
         
-        df = pd.DataFrame(data, index=dates, columns=columns)
+        signal_scores_dataframe = pd.DataFrame(signal_scores, index=dates, columns=columns)
 
         signal_weights = {
             'RSI': 1/3,
@@ -40,7 +40,7 @@ class TestCombineSignalsFromDF(unittest.TestCase):
         }
 
         # Run the function
-        combined_df = combine_signals_from_df(df, tickers, signal_weights)
+        alpha_scores_dataframe = combine_signals_from_df(signal_scores_dataframe, tickers, signal_weights)
 
         # Expected: average of each ticker's 3 signals
         expected_values = {
@@ -51,7 +51,7 @@ class TestCombineSignalsFromDF(unittest.TestCase):
         for i, date in enumerate(dates):
             for ticker in tickers:
                 self.assertAlmostEqual(
-                    combined_df.loc[date, ticker],
+                    alpha_scores_dataframe.loc[date, ticker],
                     expected_values[ticker][i],
                     places=6,
                     msg=f"Mismatch at {date} for {ticker}"

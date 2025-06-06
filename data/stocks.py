@@ -1,8 +1,5 @@
-﻿import uuid
-
-import pandas as pd
-from mysql.connector.abstracts import MySQLConnectionAbstract
-from typing import List, Dict
+﻿from mysql.connector.abstracts import MySQLConnectionAbstract
+from typing import List
 from datetime import date
 
 

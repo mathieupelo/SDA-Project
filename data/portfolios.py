@@ -1,22 +1,41 @@
-﻿from typing import List
-from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.stocks import Stock
 from datetime import date
 
 class Portfolio:
-    class PStock:
-        # Portfolio.Stock
-        def __init__(self, stock: Stock, weight: float, alpha_score: float):
-            self.stock = stock
-            self.weight = weight
-            self.alpha_score = alpha_score
+    class StockMetadata:
+        def __init__(self, weight: float, alpha_score: float):
+            self._weight = weight
+            self._alpha_score = alpha_score
+
+        @property
+        def weight(self) -> float:
+            return self._weight
+
+        @property
+        def alpha_score(self) -> float:
+            return self._alpha_score
+
+        def __repr__(self) -> str:
+            return f"(w={self.weight:.4f}, a={self.alpha_score:.4f})"
 
     # Portfolio
-    def __init__(self, p_id: str, creation_date: date, stocks: List[PStock]):
-        self.id = p_id
-        self.creation_date = creation_date
-        self.stocks = stocks
+    def __init__(self, p_id: str, creation_date: date, stocks: dict[Stock, StockMetadata]):
+        self._id = p_id
+        self._creation_date = creation_date
+        self._stocks = stocks
 
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def creation_date(self) -> date:
+        return self._creation_date
+
+    @property
+    def stocks(self) -> dict[Stock, StockMetadata]:
+        return self._stocks
 
     # def get_signals(self) -> List[SignalBase]:
     # def get_weight_table(self) -> pd.DataFrame:
@@ -50,11 +69,12 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
                    WHERE ps.portfolio_id = %s
                    """, (portfolio_id,))
     rows = cursor.fetchall()
-    stocks: List[Portfolio.PStock] = []
+    stocks: dict[Stock, Portfolio.StockMetadata] = { }
 
     for stock_id, name, ticker, weight, alpha_score in rows:
         stock = Stock(stock_id, name, ticker)
-        stocks.append(Portfolio.PStock(stock, weight, alpha_score))
+        metadata = Portfolio.StockMetadata(weight, alpha_score)
+        stocks[stock] = metadata
 
     return Portfolio(p_id=portfolio_id, creation_date=creation_date, stocks=stocks)
 
@@ -69,16 +89,15 @@ def cache_portfolio(conn: MySQLConnectionAbstract, portfolio: Portfolio) -> None
     """
     cursor = conn.cursor()
 
-    # Insert into portfolio table
+    # Cache metadata to 'portfolio_stock' database table.
     cursor.execute("""
         INSERT INTO portfolio (id, date)
         VALUES (%s, %s)
     """, (portfolio.id, portfolio.creation_date))
 
-    # Insert into portfolio_stock table
     stock_rows = [
-        (portfolio.id, pstock.stock.id, pstock.weight, pstock.alpha_score)
-        for pstock in portfolio.stocks
+        (portfolio.id, stock.id, metadata.weight, metadata.alpha_score)
+        for stock, metadata in portfolio.stocks.items()
     ]
 
     if stock_rows:
