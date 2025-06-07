@@ -1,14 +1,10 @@
 ﻿from collections import defaultdict
-from datetime import date, timedelta
-from typing import List
 from data.database import connect_to_database
-from data.stock_price import get_last_price_date_for_stock
-from data.stocks import get_stocks, Stock
-import yfinance as yf
-import pandas as pd
-import logging
-
+from data.stock_price import *
+from data.stocks import *
+from data.yahoo_finance_scripts import *
 from scripts.fetch_price import fetch_prices
+import logging
 
 
 class API:
@@ -42,54 +38,21 @@ class API:
 
     def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
         """
-        Returns the latest known price for each ticker *at or before* the given day.
+        Args:
+            tickers: list of ticker symbols to fetch the price for.
+            day: date to fetch the price for.
+
+        Returns:
+            The price table indexed by ticker symbol.
         """
+        table: dict[str, float] = { }
         conn = connect_to_database(self._host)
         stocks: List[Stock] = get_stocks(conn)
-        known_stocks: List[Stock] = [stock for stock in stocks if stock.ticker in tickers]
-        unknown_tickers: List[str] = [t for t in tickers if all(s.ticker != t for s in stocks)]
-        result: dict[str, float] = { }
 
-        # --- 1. Query DB for known tickers ---
-        if known_stocks:
-            placeholders = ', '.join(['%s'] * len(known_stocks))
-            sql = f"""
-                SELECT t.ticker, sp.close_price
-                FROM stock_price sp
-                JOIN stock t ON sp.stock_id = t.id
-                JOIN (
-                    SELECT stock_id, MAX(date) as max_date
-                    FROM stock_price
-                    WHERE date <= %s
-                      AND close_price is not null
-                      AND stock_id IN ({placeholders})
-                    GROUP BY stock_id
-                ) AS latest
-                ON sp.stock_id = latest.stock_id AND sp.date = latest.max_date
-            """
-            params = [day] + [stock.id for stock in known_stocks]
+        fill_stocks_price_table(conn, table, day, [stock for stock in stocks if stock.ticker in tickers])
+        fill_stocks_price_table_from_yahoo_finance(table, day, [t for t in tickers if all(s.ticker != t for s in stocks)])
 
-            with conn.cursor() as cursor:
-                cursor.execute(sql, params)
-                for ticker, price in cursor.fetchall():
-                    if price is not None:
-                        result[ticker] = float(price)
-
-
-        # --- 2. Fallback to Yahoo Finance for unknown tickers ---
-        for ticker in unknown_tickers:
-            try:
-                start_range = day - timedelta(days=30)
-                data = yf.download(ticker, start=start_range, end=day + timedelta(days=1), progress=False)
-                if 'Close' in data and not data['Close'].empty:
-                    close_series = data['Close'].dropna()
-                    valid_data = close_series[close_series.index <= pd.Timestamp(day)]
-                    if not valid_data.empty:
-                        result[ticker] = valid_data.iloc[-1].item()
-            except Exception as e:
-                print(f"[ERROR] Failed to fetch {ticker} from yfinance up to {day}: {e}")
-
-        return result
+        return table
 
 
 
@@ -103,67 +66,11 @@ class API:
         Returns:
             the price history table indexed by date, then by ticker symbol
         """
+        matrix: dict[date, dict[str, float]] = defaultdict(dict)
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
-        known_stocks: List[Stock] = [stock for stock in stocks if stock.ticker in tickers]
-        unknown_tickers: List[str] = [t for t in tickers if all(s.ticker != t for s in stocks)]
-        result: dict[date, dict[str, float]] = defaultdict(dict)
 
-        # For tracking dates we pulled from DB only
-        db_dates_seen: dict[str, set[date]] = { }
+        fill_stocks_price_history_matrix(conn, matrix, start_date, end_date, [stock for stock in stocks if stock.ticker in tickers])
+        fill_stocks_price_history_matrix_from_yahoo_finance(matrix, start_date, end_date, [t for t in tickers if all(s.ticker != t for s in stocks)])
 
-        # --- 1. Fetch from DB for known stocks ---
-        if known_stocks:
-            placeholders = ', '.join(['%s'] * len(known_stocks))
-            sql = f"""
-                SELECT sp.date, s.ticker, sp.close_price
-                FROM stock_price sp
-                JOIN stock s ON sp.stock_id = s.id
-                WHERE s.id IN ({placeholders})
-                  AND sp.date BETWEEN %s AND %s
-                ORDER BY sp.date
-            """
-            params = [stock.id for stock in known_stocks] + [str(start_date), str(end_date)]
-
-            with conn.cursor() as cursor:
-                cursor.execute(sql, params)
-                rows = cursor.fetchall()
-
-            for time, ticker, price in rows:
-                if db_dates_seen.get(ticker) is None:
-                    db_dates_seen[ticker] = set()
-
-                day = pd.Timestamp(time).date()
-                result[day][ticker] = price
-                db_dates_seen[ticker].add(day)
-
-        # --- 2. Fetch from Yahoo Finance for unknown stocks ---
-        for ticker in unknown_tickers:
-            try:
-                data = yf.download(ticker, start=start_date, end=end_date + timedelta(days=1), progress=False)
-                if 'Close' not in data or data['Close'].empty:
-                    print(f"[WARN] {ticker} not found on yfinance.")
-                    continue
-
-                # Ensure index is datetime and clean
-                close_series = data['Close'][ticker]
-
-                for time, price in close_series.items():
-                    time = pd.Timestamp(time).date()
-                    result[time][ticker] = price
-
-            except Exception as e:
-                print(f"[ERROR] Failed to fetch from yfinance: {ticker} – {e}")
-
-        # --- 3. Validate known DB stocks: warn if any date in range is missing for that ticker ---
-        expected_dates = {start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)}
-
-
-        for stock in known_stocks:
-            present_dates = db_dates_seen.get(stock.ticker, set())
-            missing_dates = expected_dates - present_dates
-
-            for day in sorted(missing_dates):
-                print(f"[WARN] Missing DB price data for {stock.ticker} on {day}")
-
-        return dict(result)
+        return dict(matrix)
