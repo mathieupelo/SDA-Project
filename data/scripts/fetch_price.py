@@ -1,10 +1,10 @@
-﻿from typing import List
-
-import yfinance as yf
-import pandas as pd
-from datetime import date, timedelta
+﻿from datetime import date, timedelta
 from data.utils.database import connect_to_database
 from data.stocks import get_stocks
+from decimal import Decimal
+from typing import List
+import yfinance as yf
+import pandas as pd
 
 
 def fetch_prices(host: str, since: date | None = None, tickers: List[str] | None = None):
@@ -42,8 +42,8 @@ def fetch_prices(host: str, since: date | None = None, tickers: List[str] | None
 
             # Map date -> price or None
             close_dict = {
-                d.date(): None if pd.isna(v) else float(v)
-                for d, v in close_series.items()
+                day.date(): None if pd.isna(close_price) else Decimal(close_price)
+                for day, close_price in close_series.items()
             }
 
             # Fallback if no data
