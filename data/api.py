@@ -1,12 +1,10 @@
 ﻿from collections import defaultdict
-
-from Utils.signals import SignalBase
-from data.database import connect_to_database
+from data.utils.database import connect_to_database
 from data.portfolios import *
 from data.stock_price import *
 from data.stocks import *
-from data.yahoo_finance_scripts import *
-from scripts.fetch_price import fetch_prices
+from data.utils.yahoo_finance_scripts import *
+from data.scripts.fetch_price import fetch_prices
 import logging
 
 
@@ -77,6 +75,7 @@ class API:
         fill_stocks_price_history_matrix_from_yahoo_finance(matrix, start_date, end_date, [t for t in tickers if all(s.ticker != t for s in stocks)])
 
         return dict(matrix)
+
 
 
     def store_portfolio_results(self, portfolio: Portfolio, signals: dict[SignalBase, float], yearly_return: float):

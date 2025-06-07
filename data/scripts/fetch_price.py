@@ -3,7 +3,7 @@
 import yfinance as yf
 import pandas as pd
 from datetime import date, timedelta
-from data.database import connect_to_database
+from data.utils.database import connect_to_database
 from data.stocks import get_stocks
 
 

@@ -1,5 +1,4 @@
-﻿import uuid
-from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿from mysql.connector.abstracts import MySQLConnectionAbstract
 from Utils.signals import SignalBase
 from data.solver_config import SolverConfig
 from data.stocks import Stock

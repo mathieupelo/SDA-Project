@@ -11,7 +11,7 @@ import logging
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any
 from dataclasses import dataclass
-from data.database import connect_to_database
+from data.utils.database import connect_to_database
 from data.solver_config import SolverConfig
 import itertools
 from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
