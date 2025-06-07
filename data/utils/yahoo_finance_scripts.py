@@ -4,6 +4,7 @@ import yfinance as yf
 import pandas as pd
 
 
+# DEPRECATED TODO: Use another API
 def fill_stocks_price_table_from_yahoo_finance(table: dict[str, Decimal], day: date, tickers: list[str]):
     for ticker in tickers:
         try:
@@ -19,6 +20,7 @@ def fill_stocks_price_table_from_yahoo_finance(table: dict[str, Decimal], day: d
             print(f"[ERROR] Failed to fetch {ticker} from yfinance up to {day}: {e}")
 
 
+# DEPRECATED TODO: Use another API
 def fill_stocks_price_history_matrix_from_yahoo_finance(matrix: dict[date, dict[str, Decimal]], first_day: date, last_day: date, tickers: list[str]):
     for ticker in tickers:
         try:

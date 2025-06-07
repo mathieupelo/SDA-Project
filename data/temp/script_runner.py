@@ -10,5 +10,9 @@ tickers = ['MSFT', 'SONY']
 
 api.ensure_database_is_up_to_date()
 
-#history = api.get_price_history_for_tickers(tickers, date(2010, 1, 1), date(2024, 3, 1))
-#print(history)
+history = api.get_price_history_for_tickers(tickers, date(2010, 1, 1), date(2024, 3, 1))
+
+
+until = date(2014, 1, 1)
+history_until_2014 = { day: value for day, value in history.items() if day < until }
+print(history_until_2014)

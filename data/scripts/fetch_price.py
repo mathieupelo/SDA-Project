@@ -18,6 +18,7 @@ def fetch_prices(host: str, since: date | None = None, tickers: List[str] | None
     if tickers is not None:
         stocks = [stock for stock in stocks if stock.ticker in tickers]
 
+    # TODO: Don't fetch from yf, it's unreliable !!
     for stock in stocks:
         try:
             data = yf.download(stock.ticker, start=since, end=today + timedelta(days=1), progress=False)
