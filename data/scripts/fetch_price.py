@@ -1,7 +1,7 @@
 ﻿from datetime import date, timedelta
 from data.utils.database import connect_to_database
 from data.stocks import get_stocks
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List
 import yfinance as yf
 import pandas as pd
@@ -42,7 +42,8 @@ def fetch_prices(host: str, since: date | None = None, tickers: List[str] | None
 
             # Map date -> price or None
             close_dict = {
-                day.date(): None if pd.isna(close_price) else Decimal(close_price)
+                day.date(): None if pd.isna(close_price)
+                else Decimal(close_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 for day, close_price in close_series.items()
             }
 

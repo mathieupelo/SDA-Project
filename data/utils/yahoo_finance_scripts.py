@@ -1,5 +1,5 @@
 ﻿from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import yfinance as yf
 import pandas as pd
 
@@ -13,7 +13,8 @@ def fill_stocks_price_table_from_yahoo_finance(table: dict[str, Decimal], day: d
                 close_series = data['Close'].dropna()
                 valid_data = close_series[close_series.index <= pd.Timestamp(day)]
                 if not valid_data.empty:
-                    table[ticker] = valid_data.iloc[-1].item()
+                    price = Decimal(valid_data.iloc[-1]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    table[ticker] = price
         except Exception as e:
             print(f"[ERROR] Failed to fetch {ticker} from yfinance up to {day}: {e}")
 
@@ -26,12 +27,13 @@ def fill_stocks_price_history_matrix_from_yahoo_finance(matrix: dict[date, dict[
                 print(f"[WARN] {ticker} not found on yfinance.")
                 continue
 
-            # Ensure index is datetime and clean
-            close_series = data['Close'][ticker]
+            close_series = data['Close']
+            close_series = close_series.dropna()
 
             for time, price in close_series.items():
                 time = pd.Timestamp(time).date()
-                matrix[time][ticker] = price
+                rounded_price = Decimal(price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                matrix[time][ticker] = rounded_price
 
         except Exception as e:
             print(f"[ERROR] Failed to fetch from yfinance: {ticker} – {e}")
