@@ -39,6 +39,30 @@ def setup_backtesting_system():
     
     return signal_registry
 
+def plot_backtest_results(backtest_results: BacktestResult):
+    """Plot the results of the backtest"""
+    import matplotlib.pyplot as plt
+
+    # Starting with $10,000
+    initial_investment = 10_000
+
+    # Plotting
+    plt.figure(figsize=(12, 6))
+    plt.plot(backtest_results.returns_series.index, initial_investment * (1 + backtest_results.returns_series.values), label='Portfolio Value')
+
+    # Add horizontal line for final value
+    average_return = backtest_results.returns_series.mean()
+    final_value = initial_investment * (1 + average_return)
+    plt.axhline(final_value, color='red', linestyle='--', label=f'Final Value: ${final_value:,.2f}')
+
+    plt.xlabel('Date')
+    plt.ylabel('Portfolio Value ($)')
+    plt.title('Portfolio Value Over Time')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 def run_backtests():
     tickers = ['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOG']
     tickers = ['AAPL', 'MSFT']
@@ -195,33 +219,7 @@ def run_single_backtest():
     )
 
     print("Single backtest completed successfully.")
-
-
-    import matplotlib.pyplot as plt
-
-    # Starting with $10,000
-    initial_investment = 10_000
-
-    
-    # Plotting
-    plt.figure(figsize=(12, 6))
-    plt.plot(backtest_results.returns_series.index, initial_investment * (1 + backtest_results.returns_series.values), label='Portfolio Value')
-
-    # Add horizontal line for final value
-    average_return = backtest_results.returns_series.mean()
-    final_value = initial_investment * (1 + average_return)
-    plt.axhline(final_value, color='red', linestyle='--', label=f'Final Value: ${final_value:,.2f}')
-
-    plt.xlabel('Date')
-    plt.ylabel('Portfolio Value ($)')
-    plt.title('Portfolio Value Over Time')
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    
-
-    print("Backtest result displayed successfully.")
+    plot_backtest_results(backtest_results)
 
 
 if __name__ == "__main__":
