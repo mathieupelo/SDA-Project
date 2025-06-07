@@ -27,7 +27,7 @@ def fill_stocks_price_history_matrix(
 
     # For tracking dates we pulled from DB only
     db_dates_seen: dict[str, set[date]] = { }
-    expected_dates = {first_day + timedelta(days=i) for i in range((last_day - first_day).days + 1)}
+    expected_dates = {first_day + timedelta(days=i) for i in range((last_day - first_day).days)}
 
     sql_params = [stock.id for stock in stocks] + [str(first_day), str(last_day)]
     sql_placeholders = ', '.join(['%s'] * len(stocks))

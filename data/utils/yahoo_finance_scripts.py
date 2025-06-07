@@ -20,7 +20,7 @@ def fill_stocks_price_table_from_yahoo_finance(table: dict[str, float], day: dat
 def fill_stocks_price_history_matrix_from_yahoo_finance(matrix: dict[date, dict[str, float]], first_day: date, last_day: date, tickers: list[str]):
     for ticker in tickers:
         try:
-            data = yf.download(ticker, start=first_day, end=last_day + timedelta(days=1), progress=False)
+            data = yf.download(ticker, start=first_day, end=last_day, progress=False)
             if 'Close' not in data or data['Close'].empty:
                 print(f"[WARN] {ticker} not found on yfinance.")
                 continue
