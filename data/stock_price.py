@@ -3,38 +3,6 @@ from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.stocks import Stock
 import pandas as pd
 
-def get_stock_price_table(conn: MySQLConnectionAbstract, stock_id: str, start: date, end: date) \
-        -> dict[date, float] | None:
-    """
-    Fetches historical stock prices for a given stock_id and date range.
-
-    Parameters:
-        stock_id (str): UUID of the stock in the stock table.
-        conn: MySQL connection object.
-        start (str or datetime.date): Start date (inclusive), e.g. '2020-01-01'.
-        end (str or datetime.date): End date (inclusive), e.g. '2024-12-31'.
-
-    Returns:
-        dict[date, float] | None: A dict with {date: close_price} or None if no rows are found.
-    """
-    sql = """
-          SELECT date, close_price
-          FROM stock_price
-          WHERE stock_id = %s
-            AND date BETWEEN %s AND %s
-          ORDER BY date
-          """
-
-    cursor = conn.cursor()
-    cursor.execute(sql, (stock_id, start, end))
-    rows = cursor.fetchall()
-
-    if not rows:
-        return None
-
-    return {row[0]: float(row[1]) for row in rows}
-
-
 
 def fill_stocks_price_history_matrix(
         conn: MySQLConnectionAbstract,
@@ -49,8 +17,8 @@ def fill_stocks_price_history_matrix(
     Parameters:
         conn: MySQL connection object.
         matrix: matrix to fill the historical stock prices in.
-        first_day: First day to fetch the historical stock prices in.
-        last_day: Last day to fetch the historical stock prices for.
+        first_day: First day to fetch the historical stock prices in, included in the range.
+        last_day: Last day to fetch the historical stock prices for, excluded in the range.
         stocks: List of stocks to fetch the historical stock prices for.
     """
 
@@ -68,7 +36,7 @@ def fill_stocks_price_history_matrix(
                     FROM stock_price sp
                     JOIN stock s ON sp.stock_id = s.id
                     WHERE s.id IN ({sql_placeholders})
-                      AND sp.date BETWEEN %s AND %s
+                      AND sp.date >= %s AND sp.date < %s
                     ORDER BY sp.date
                 """
 
