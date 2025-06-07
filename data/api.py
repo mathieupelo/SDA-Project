@@ -1,5 +1,8 @@
 ﻿from collections import defaultdict
+
+from Utils.signals import SignalBase
 from data.database import connect_to_database
+from data.portfolios import *
 from data.stock_price import *
 from data.stocks import *
 from data.yahoo_finance_scripts import *
@@ -74,3 +77,15 @@ class API:
         fill_stocks_price_history_matrix_from_yahoo_finance(matrix, start_date, end_date, [t for t in tickers if all(s.ticker != t for s in stocks)])
 
         return dict(matrix)
+
+
+    def store_portfolio_results(self, portfolio: Portfolio, signals: dict[SignalBase, float], yearly_return: float):
+        """
+        Caches the provided portfolio and its return to the database.
+        Args:
+            portfolio: Portfolio to store into the database.
+            signals: A table indexed by the signals used for the computation of the portfolio, where values are the weights.
+            yearly_return: Yearly return of that portfolio.
+        """
+        conn = connect_to_database(self._host)
+        cache_portfolio_data(conn, portfolio, signals, yearly_return)

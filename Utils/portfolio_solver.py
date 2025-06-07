@@ -94,7 +94,7 @@ class PortfolioSolver:
         }
 
         portfolio_id = str(uuid.uuid1())
-        return Portfolio(portfolio_id, creation_date, metadata)
+        return Portfolio(portfolio_id, creation_date, metadata, self._config)
 
 def construct_portfolio_solver(
         conn: MySQLConnectionAbstract,

@@ -1,6 +1,10 @@
-﻿from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿import uuid
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from Utils.signals import SignalBase
+from data.solver_config import SolverConfig
 from data.stocks import Stock
 from datetime import date
+from typing import Iterable
 
 class Portfolio:
     class StockMetadata:
@@ -20,10 +24,11 @@ class Portfolio:
             return f"(w={self.weight:.4f}, a={self.alpha_score:.4f})"
 
     # Portfolio
-    def __init__(self, p_id: str, creation_date: date, stocks: dict[Stock, StockMetadata]):
+    def __init__(self, p_id: str, creation_date: date, stocks: dict[Stock, StockMetadata], config: SolverConfig):
         self._id = p_id
         self._creation_date = creation_date
         self._stocks = stocks
+        self._config = config
 
     @property
     def id(self) -> str:
@@ -37,8 +42,13 @@ class Portfolio:
     def stocks(self) -> dict[Stock, StockMetadata]:
         return self._stocks
 
+    @property
+    def config(self) -> SolverConfig:
+        return self._config
+
     def get_weight_table(self) -> dict[str, float]:
         return { stock.ticker: metadata.weight for stock, metadata in self._stocks.items() }
+
 
 
 def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio | None:
@@ -79,7 +89,11 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
     return Portfolio(p_id=portfolio_id, creation_date=creation_date, stocks=stocks)
 
 
-def cache_portfolio(conn: MySQLConnectionAbstract, portfolio: Portfolio) -> None:
+def cache_portfolio_data(
+        conn: MySQLConnectionAbstract,
+        portfolio: Portfolio,
+        signals: dict[SignalBase, float],
+        yearly_return: float):
     """
     Caches a Portfolio into the database.
 
@@ -87,13 +101,14 @@ def cache_portfolio(conn: MySQLConnectionAbstract, portfolio: Portfolio) -> None
     - conn: The MySQL connection object.
     - portfolio: The Portfolio object to insert.
     """
+    ensure_signals_are_stored_in_db(conn, signals)
     cursor = conn.cursor()
 
-    # Cache metadata to 'portfolio_stock' database table.
+    # Cache to 'portfolio' database table.
     cursor.execute("""
-        INSERT INTO portfolio (id, date)
-        VALUES (%s, %s)
-    """, (portfolio.id, portfolio.creation_date))
+        INSERT INTO portfolio (id, date, risk_aversion, max_weight, yearly_return)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (portfolio.id, portfolio.creation_date, portfolio.config.risk_aversion, portfolio.config.max_weight_threshold, yearly_return))
 
     stock_rows = [
         (portfolio.id, stock.id, metadata.weight, metadata.alpha_score)
@@ -106,4 +121,45 @@ def cache_portfolio(conn: MySQLConnectionAbstract, portfolio: Portfolio) -> None
             VALUES (%s, %s, %s, %s)
         """, stock_rows)
 
+    signal_rows = [
+        (portfolio.id, signal.name, weight)
+        for signal, weight in signals.items()
+    ]
+
+    if stock_rows:
+        cursor.executemany("""
+            INSERT INTO portfolio_signal (portfolio_id, signal_id, weight)
+            VALUES (%s, %s, %s)
+        """, signal_rows)
+
     conn.commit()
+
+
+
+def ensure_signals_are_stored_in_db(conn: MySQLConnectionAbstract, signals: Iterable[SignalBase]):
+    """
+    Ensures all signals exist in the database by their name (signal.name),
+    inserting any missing ones.
+
+    Parameters:
+    - conn: The MySQL connection object.
+    - signals: An iterable of SignalBase objects.
+    """
+    cursor = conn.cursor()
+    signals = list(signals)
+    names = [s.name for s in signals]
+
+    if not names:
+        return
+
+    # Step 1: Find existing signal names
+    placeholders = ', '.join(['%s'] * len(names))
+    cursor.execute(f"SELECT id FROM sda.signal WHERE id IN ({placeholders})", names)
+    existing_names = {row[0] for row in cursor.fetchall()}
+
+    # Step 2: Insert missing
+    to_insert = list({signal.name for signal in signals if signal.name not in existing_names})
+
+    if to_insert:
+        cursor.executemany("INSERT INTO sda.signal (id) VALUES (%s)", to_insert)
+        conn.commit()
