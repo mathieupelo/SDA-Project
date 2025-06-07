@@ -44,9 +44,10 @@ def run_backtests():
     tickers = ['AAPL', 'MSFT']
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
+    api = API('192.168.0.165')
     signal_registry = setup_backtesting_system()
 
-    # Before callinb BacktestEngine, make sure we have a signal reistry and the signals registered on
+    # Before calling BacktestEngine, make sure we have a signal registry and the signals registered on
     portfolio_solver = Portfolio_Solver()
     backtest_engine = BacktestEngine(signal_registry, portfolio_solver)
 
@@ -57,6 +58,12 @@ def run_backtests():
         rebalance_frequency="monthly",
         holding_period=20
     )
+
+    # TODO: Use date from DateTime in BacktestConfig and derive start and end from config.
+    data = api.get_price_history_for_tickers(tickers, date(2020, 1, 1), date(2025, 1, 1))
+
+    # If you want DataFrame again
+    # data = pd.DataFrame.from_dict(data)
 
     available_signals = signal_registry.list_signals()
     print(f"available_signals : ", available_signals)
