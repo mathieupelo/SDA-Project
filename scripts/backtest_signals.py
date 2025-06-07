@@ -45,6 +45,8 @@ def run_backtests():
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
 
     api = API('192.168.0.165')
+    api.ensure_database_is_up_to_date()
+    
     signal_registry = setup_backtesting_system()
 
     # Before calling BacktestEngine, make sure we have a signal registry and the signals registered on
