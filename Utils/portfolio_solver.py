@@ -9,68 +9,51 @@ import numpy as np
 import pandas as pd
 
 
-class StockSnapshot:
-    """
-    Metadata of a stock at a given date. It contains the evaluated alpha_score from the signals pipeline
-    and its price history.
-    """
-
-    def __init__(self, alpha_score: float, price_history: dict[date, float]):
-        self._alpha_score = alpha_score
-        self._price_history = price_history
-
-    @property
-    def alpha_score(self) -> float:
-        return self._alpha_score
-
-    @property
-    def price_history(self) -> dict[date, float]:
-        return self._price_history
-
-
 class PortfolioSolver:
 
-    def __init__(self, stocks: dict[Stock, StockSnapshot], config: SolverConfig):
-        self._stocks = stocks
+    def __init__(self, stock_weights: dict[Stock, float], config: SolverConfig):
+        self._stock_weights = stock_weights
         self._config = config
 
     @property
-    def stocks(self) -> dict[Stock, StockSnapshot]:
-        return self._stocks
+    def stock_weights(self) -> dict[Stock, float]:
+        return self._stock_weights
 
     @property
     def config(self) -> SolverConfig:
         return self._config
 
-    def solve(self, creation_date: date) -> Portfolio:
+    def solve(self, creation_date: date, price_history: pd.DataFrame) -> Portfolio:
         """
             Solve the signal data to predict the most performant portfolio
         """
-        stock_list = list(self._stocks.keys())
-        stock_count = len(stock_list)
+        # Ensure the index is a regular Index (not DatetimeIndex)
+        if not isinstance(price_history.index, pd.Index):
+            raise ValueError("price_history must have a regular pd.Index of type 'date', not a DatetimeIndex.")
 
-        # === Build price table from snapshots ===
-        price_data = pd.DataFrame({
-            stock.ticker: snapshot.price_history
-            for stock, snapshot in self._stocks.items()
-        })
+        # Ensure all index values are exactly of type 'date'
+        if not all(isinstance(day, date) for day in price_history.index):
+            raise ValueError("Each index entry in price_history must be of type 'datetime.date'.")
+
+        stock_list = list(self._stock_weights.keys())
+        stock_count = len(stock_list)
 
         # === Compute daily returns ===
         # TODO: Drop all na instead of just dropna?
-        var_returns = price_data.pct_change().dropna()
+        var_returns = price_history.pct_change().dropna()
 
         # === Compute covariance matrix (sigma) ===
         sigma: np.ndarray = var_returns.cov().values
 
         # === Normalize alpha scores ===
-        raw_scores = np.array([self._stocks[stock].alpha_score for stock in stock_list])
+        raw_scores = np.array([self._stock_weights[stock] for stock in stock_list])
         normalized_scores = raw_scores / np.sum(raw_scores)
         alpha_scores = normalized_scores.reshape(-1, 1)
 
         # === Optimization ===
         p = matrix(self._config.risk_aversion * sigma)
         # Scale expected returns + signals by (1 - alpha)
-        q = matrix(- (1 - self._config.risk_aversion) * (alpha_scores))
+        q = matrix(- (1 - self._config.risk_aversion) * alpha_scores)
 
         g = np.vstack([
             -np.eye(stock_count),   # No short selling (weights ≥ 0)
@@ -89,7 +72,7 @@ class PortfolioSolver:
 
         # === Build Portfolio ===
         metadata = {
-            stock: Portfolio.StockMetadata(weight, self._stocks[stock].alpha_score)
+            stock: Portfolio.StockMetadata(weight, self._stock_weights[stock])
             for stock, weight in zip(stock_list, weights)
         }
 
@@ -99,27 +82,18 @@ class PortfolioSolver:
 def construct_portfolio_solver(
         conn: MySQLConnectionAbstract,
         alpha_scores: dict[str, float],
-        price_histories: dict[str, dict[date, float]],
         config: SolverConfig,
-        fetch_database: bool = True,
 ) -> PortfolioSolver:
 
-    stock_snapshots: dict[Stock, StockSnapshot] = { }
+    stock_snapshots: dict[Stock, float] = { }
 
     for ticker, alpha_score in alpha_scores.items():
-        stock = None
-        price_history = price_histories[ticker]
 
-        if fetch_database:
-            stock = get_stock(conn, ticker)
-
+        stock = get_stock(conn, ticker)
         if not stock:
             stock = Stock(str(uuid.uuid1()), f"{ticker}_TEST", ticker)
 
-        if fetch_database:
-            price_histories.get(ticker)
-
-        stock_snapshots[stock] = StockSnapshot(alpha_score, price_history)
+        stock_snapshots[stock] = alpha_score
 
     solver = PortfolioSolver(stock_snapshots, config)
     return solver
