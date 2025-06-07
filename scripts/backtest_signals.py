@@ -12,13 +12,10 @@ import itertools
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date as dt
 from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
-from Utils.Solver import Portfolio_Solver
-from Utils.Solver import *
 from data.stocks import *
 from Utils.backtesting import *
 from data.utils.database import connect_to_database
 from data.stocks import get_stocks
-from data.stock_price import get_stock_price_table
 
 
 # ============================================================================
@@ -86,7 +83,7 @@ def run_backtests():
     )
 
     # TODO: Use date from DateTime in BacktestConfig and derive start and end from config.
-    data = api.get_price_history_for_tickers(tickers, date(2020, 1, 1), date(2025, 1, 1))
+    data = api.get_price_history_for_tickers(tickers, dt(2020, 1, 1), dt(2025, 1, 1))
 
     # If you want DataFrame again
     # data = pd.DataFrame.from_dict(data)
@@ -177,6 +174,11 @@ def run_backtests():
 def run_single_backtest():
     print("Running single backtest")
 
+
+    api = API('192.168.0.165')
+    api.ensure_database_is_up_to_date()
+
+
     # TODO: Call function instead
     conn = connect_to_database('192.168.0.165')
     stocks = get_stocks(conn)
@@ -189,12 +191,27 @@ def run_single_backtest():
     tickers = ['AAPL', 'MSFT', 'META', 'EA', 'SONY']  # Example tickers`
     data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
     #data = yf.download(tickers, start='2019-01-01', end='2020-01-01')
+    print(data)
+
+    data_from_db = api.get_price_history_for_tickers(tickers, start_date=dt(2010, 1, 1), end_date=dt(2025, 1, 1))
+    df_data = pd.DataFrame.from_dict(data_from_db, orient='columns')
+    print("df_data DataFrame:")
+    df_data = df_data.T.dropna(how="all", axis=0)
+    df_data = df_data[sorted(df_data.columns)]
+    df_data.index.name = 'Ticker'
+    print(df_data)
+
+
+    close_df = data['Close']
+    close_df = close_df[sorted(close_df.columns)]
+    #close_df.index.name = 'Ticker'
+    print("Close prices DataFrame:")
+    print(close_df)
+
 
     signal_registry = setup_backtesting_system()
-
     # Before callinb BacktestEngine, make sure we have a signal reistry and the signals registered on
-    portfolio_solver = Portfolio_Solver()
-    backtest_engine = BacktestEngine(signal_registry, portfolio_solver)
+    backtest_engine = BacktestEngine(signal_registry)
 
     # Configuration
     config = BacktestConfig(
@@ -213,13 +230,14 @@ def run_single_backtest():
     print(f"Backtesting signal combination : {signal_combination}")
     backtest_results = backtest_engine.run_backtest(
         tickers=tickers,
-        data=data,
+        data=close_df,
         combination=signal_combination,
         config=config
     )
 
     print("Single backtest completed successfully.")
     plot_backtest_results(backtest_results)
+    print("Single backtest plotted.")
 
 
 if __name__ == "__main__":

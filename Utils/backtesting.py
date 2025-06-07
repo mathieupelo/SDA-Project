@@ -15,7 +15,7 @@ from data.utils.database import connect_to_database
 from data.solver_config import SolverConfig
 import itertools
 from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
-from datetime import date as dt
+from datetime import datetime, date as dt
 import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
@@ -65,7 +65,7 @@ class SignalCombination:
 class BacktestEngine:
     """Main backtesting engine"""
 
-    def __init__(self, signal_registry: SignalRegistry, portfolio_solver):
+    def __init__(self, signal_registry: SignalRegistry):
         self.signal_registry = signal_registry
         self.logger = logging.getLogger(__name__)
 
@@ -136,25 +136,20 @@ class BacktestEngine:
         solver_config = SolverConfig(risk_aversion = 0)
 
         # TODO : API.getpriceshistory 
-        price_histories: dict[str, dict[dt, float]] = {
-            ticker: {date.date(): price for date, price in series.dropna().items()}
-            for ticker, series in data['Close'].items()
-        }
 
         for date, row in combined_df_no_nan.iterrows():
-
-            # TODO: Only keep 1 year of data
-            # !!!!!!!!!!
-            price_histories = price_histories.copy() 
+            # Convert to Timestamp and subtract 1 year
+            start_minus_1_year = pd.to_datetime(date) - get_date_offset('yearly')
+            
+            last_year_data = data.loc[start_minus_1_year.date() :pd.to_datetime(date).date()]
 
             solver = construct_portfolio_solver(
                 conn=conn,  # Replace with actual connection if needed
                 alpha_scores=row.to_dict(),  # Assuming row contains alpha scores
-                price_histories=price_histories,  # Replace with actual price histories if needed
                 config=solver_config
             )
 
-            portfolio = solver.solve(date)
+            portfolio = solver.solve(date, last_year_data)
 
             #TODO: Calculate returns based on portfolio weights and price histories
             offset = get_date_offset(config.evaluation_period)
@@ -167,11 +162,11 @@ class BacktestEngine:
             # Fetch prices from `data['Close']` for both date and evaluation_date
             try:
                 prices_portfolio = {
-                    ticker: data['Close'][ticker].get(date, None)
+                    ticker: data[ticker].get(date, None)
                     for ticker in tickers
                 }
                 prices_evaluation = {
-                    ticker: data['Close'][ticker].get(evaluation_date, None)
+                    ticker: data[ticker].get(evaluation_date, None)
                     for ticker in tickers
                 }
             except KeyError as e:

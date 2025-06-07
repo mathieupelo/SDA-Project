@@ -87,7 +87,7 @@ class RSISignal(SignalBase):
         
         for ticker in tickers: 
             try:
-                close_prices = data['Close'][ticker]
+                close_prices = data[ticker]
                 rsi = ta.RSI(close_prices, timeperiod=self.period)
                 
                 #date = date.normalize()  # Ensure date is in correct format
@@ -124,7 +124,7 @@ class MACDSignal(SignalBase):
         
         for ticker in tickers:
             try:
-                close_prices = data['Close'][ticker]
+                close_prices = data[ticker]
                 macd, macdsignal, _ = ta.MACD(close_prices, 
                                             fastperiod=self.fast_period,
                                             slowperiod=self.slow_period, 
@@ -158,7 +158,7 @@ class SMASignal(SignalBase):
         
         for ticker in tickers:
             try:
-                close_prices = data['Close'][ticker]
+                close_prices = data[ticker]
                 sma_short = ta.SMA(close_prices, timeperiod=self.short_period)
                 sma_long = ta.SMA(close_prices, timeperiod=self.long_period)
                 
