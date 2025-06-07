@@ -93,7 +93,7 @@ def cache_portfolio_data(
         conn: MySQLConnectionAbstract,
         portfolio: Portfolio,
         signals: dict[SignalBase, float],
-        yearly_return: Decimal):
+        yearly_return: float):
     """
     Caches a Portfolio into the database.
 

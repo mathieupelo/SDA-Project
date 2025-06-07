@@ -1,11 +1,10 @@
 ﻿from datetime import date, timedelta
-from decimal import Decimal
 import yfinance as yf
 import pandas as pd
 
 
 # DEPRECATED TODO: Use another API
-def fill_stocks_price_table_from_yahoo_finance(table: dict[str, Decimal], day: date, tickers: list[str]):
+def fill_stocks_price_table_from_yahoo_finance(table: dict[str, float], day: date, tickers: list[str]):
     for ticker in tickers:
         try:
             start_range = day - timedelta(days=30)
@@ -21,7 +20,7 @@ def fill_stocks_price_table_from_yahoo_finance(table: dict[str, Decimal], day: d
 
 
 # DEPRECATED TODO: Use another API
-def fill_stocks_price_history_matrix_from_yahoo_finance(matrix: dict[date, dict[str, Decimal]], first_day: date, last_day: date, tickers: list[str]):
+def fill_stocks_price_history_matrix_from_yahoo_finance(matrix: dict[date, dict[str, float]], first_day: date, last_day: date, tickers: list[str]):
     for ticker in tickers:
         try:
             data = yf.download(ticker, start=first_day, end=last_day, progress=False)
