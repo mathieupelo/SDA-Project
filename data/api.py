@@ -37,7 +37,7 @@ class API:
 
 
 
-    def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, float]:
+    def get_price_for_tickers(self, tickers: List[str], day: date) -> dict[str, Decimal]:
         """
         Args:
             tickers: list of ticker symbols to fetch the price for.
@@ -46,7 +46,7 @@ class API:
         Returns:
             The price table indexed by ticker symbol.
         """
-        table: dict[str, float] = { }
+        table: dict[str, Decimal] = { }
         conn = connect_to_database(self._host)
         stocks: List[Stock] = get_stocks(conn)
 
@@ -57,7 +57,7 @@ class API:
 
 
 
-    def get_price_history_for_tickers(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
+    def get_price_history_for_tickers(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, Decimal]]:
         """
         Args:
             tickers: list of ticker symbols to fetch the price_history for
@@ -67,7 +67,7 @@ class API:
         Returns:
             the price history table indexed by date, then by ticker symbol
         """
-        matrix: dict[date, dict[str, float]] = defaultdict(dict)
+        matrix: dict[date, dict[str, Decimal]] = defaultdict(dict)
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
 
@@ -78,7 +78,7 @@ class API:
 
 
 
-    def store_portfolio_results(self, portfolio: Portfolio, signals: dict[SignalBase, float], yearly_return: float):
+    def store_portfolio_results(self, portfolio: Portfolio, signals: dict[SignalBase, float], yearly_return: Decimal):
         """
         Caches the provided portfolio and its return to the database.
         Args:

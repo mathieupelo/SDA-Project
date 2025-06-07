@@ -1,4 +1,5 @@
 ﻿from datetime import date, timedelta
+from decimal import Decimal
 from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.stocks import Stock
 import pandas as pd
@@ -6,7 +7,7 @@ import pandas as pd
 
 def fill_stocks_price_history_matrix(
         conn: MySQLConnectionAbstract,
-        matrix: dict[date, dict[str, float]],
+        matrix: dict[date, dict[str, Decimal]],
         first_day: date,
         last_day: date,
         stocks: list[Stock]):
@@ -63,7 +64,7 @@ def fill_stocks_price_history_matrix(
 
 def fill_stocks_price_table(
         conn: MySQLConnectionAbstract,
-        table: dict[str, float],
+        table: dict[str, Decimal],
         day: date,
         stocks: list[Stock]):
     """
@@ -99,10 +100,10 @@ def fill_stocks_price_table(
         cursor.execute(sql, sql_params)
         for ticker, price in cursor.fetchall():
             if price is not None:
-                table[ticker] = float(price)
+                table[ticker] = Decimal(price)
 
 
-def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | str) -> float or None:
+def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | str) -> Decimal or None:
     """
     Fetches the closing price of a stock for a specific date.
 
@@ -112,7 +113,7 @@ def get_stock_price(conn: MySQLConnectionAbstract, stock_id: str, when: date | s
         when (str or datetime.date): The date to retrieve the price for.
 
     Returns:
-        float or None: The closing price if found, otherwise None.
+        Decimal or None: The closing price if found, otherwise None.
     """
     sql = """
           SELECT close_price

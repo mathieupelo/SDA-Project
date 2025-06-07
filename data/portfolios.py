@@ -1,4 +1,5 @@
-﻿from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿from decimal import Decimal
+from mysql.connector.abstracts import MySQLConnectionAbstract
 from Utils.signals import SignalBase
 from data.solver_config import SolverConfig
 from data.stocks import Stock
@@ -92,7 +93,7 @@ def cache_portfolio_data(
         conn: MySQLConnectionAbstract,
         portfolio: Portfolio,
         signals: dict[SignalBase, float],
-        yearly_return: float):
+        yearly_return: Decimal):
     """
     Caches a Portfolio into the database.
 
