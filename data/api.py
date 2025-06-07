@@ -16,6 +16,19 @@ class API:
         """
         self._host = host
 
+    
+    def get_tickers_in_universe(self, universe_name: str) -> List[str]:
+        """
+        Retrieves the list of ticker symbols from a universe.
+        Args:
+            universe_name: Name of the universe to retrieve the tickers from.
+
+        Returns:
+            The list of ticker symbols from the universe.
+        """
+        # TODO
+        pass
+
 
     def ensure_database_is_up_to_date(self):
         conn = connect_to_database(self._host)
