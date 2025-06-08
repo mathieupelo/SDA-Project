@@ -105,7 +105,11 @@ class BacktestEngine:
         returns_series_timeseries = pd.Series(dtype=float)
         weights_history = {}
 
+        #TODO: Remove all dates that are not in the data
+        # Filter date_range to only include dates present in the data
+        date_range = [day for day in date_range if day in data.index]
         for day in date_range:
+
             row = {('date', ''): day}
             
             # Only calculate signals that are in the current combination
@@ -142,7 +146,7 @@ class BacktestEngine:
             # Convert to Timestamp and subtract 1 year
             start_minus_1_year = pd.to_datetime(day) - get_date_offset('yearly')
             
-            last_year_data = data.loc[start_minus_1_year.date() :pd.to_datetime(day).date()]
+            last_year_data = data.loc[start_minus_1_year.date() :day]
 
             solver = construct_portfolio_solver(
                 conn=conn,  # Replace with actual connection if needed
@@ -167,7 +171,7 @@ class BacktestEngine:
                     for ticker in tickers
                 }
                 prices_evaluation = {
-                    ticker: data[ticker].get(evaluation_date, None)
+                    ticker: data[ticker].get(evaluation_date.date(), None)
                     for ticker in tickers
                 }
             except KeyError as e:

@@ -47,6 +47,10 @@ class PortfolioSolver:
 
         # === Normalize alpha scores ===
         raw_scores = np.array([self._stock_weights[stock] for stock in stock_list])
+
+        # TODO: If one of the raw scores is Nan, we should normalize the rest
+        # array([-0.52055599,         nan,  0.25826212,         nan,         nan])
+        # HOw do we want to treat NaN values? assign all 0??
         normalized_scores = raw_scores / np.sum(raw_scores)
         alpha_scores = normalized_scores.reshape(-1, 1)
 

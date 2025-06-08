@@ -71,7 +71,7 @@ def run_backtests():
     signal_registry = setup_backtesting_system()
 
     # Before calling BacktestEngine, make sure we have a signal registry and the signals registered on
-    portfolio_solver = Portfolio_Solver()
+
     backtest_engine = BacktestEngine(signal_registry, portfolio_solver)
 
     # Configuration
@@ -198,15 +198,16 @@ def run_single_backtest():
     print("df_data DataFrame:")
     df_data = df_data.T.dropna(how="all", axis=0)
     df_data = df_data[sorted(df_data.columns)]
-    df_data.index.name = 'Ticker'
+    df_data.columns.name = 'Ticker'
+    df_data.index.name = 'Date'
     print(df_data)
 
 
     close_df = data['Close']
     close_df = close_df[sorted(close_df.columns)]
     #close_df.index.name = 'Ticker'
-    print("Close prices DataFrame:")
-    print(close_df)
+    print("BD prices DataFrame:")
+    print(df_data)
 
 
     signal_registry = setup_backtesting_system()
@@ -230,7 +231,7 @@ def run_single_backtest():
     print(f"Backtesting signal combination : {signal_combination}")
     backtest_results = backtest_engine.run_backtest(
         tickers=tickers,
-        data=close_df,
+        data=df_data,
         combination=signal_combination,
         config=config
     )
