@@ -49,7 +49,7 @@ def fill_stocks_price_history_matrix(
             db_dates_seen[ticker] = set()
 
         day = pd.Timestamp(time).date()
-        matrix[day][ticker] = price
+        matrix[day][ticker] = float(price) if price else None
         db_dates_seen[ticker].add(day)
 
     for stock in stocks:
