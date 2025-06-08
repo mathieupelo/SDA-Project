@@ -11,6 +11,8 @@ import pandas as pd
 
 class PortfolioSolver:
 
+    
+
     def __init__(self, stock_weights: dict[Stock, float], config: SolverConfig):
         self._stock_weights = stock_weights
         self._config = config

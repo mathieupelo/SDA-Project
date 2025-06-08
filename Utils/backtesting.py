@@ -16,7 +16,7 @@ from data.utils.database import connect_to_database
 from data.solver_config import SolverConfig
 import itertools
 from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
-from datetime import datetime, date as dt
+from datetime import datetime, date
 import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
@@ -83,8 +83,6 @@ class BacktestEngine:
         
         return combinations
     
-    
-
     def _calculate_period_returns(self, data: pd.DataFrame, tickers: List[str], 
                                 weights: np.ndarray, start_date: str, period: int) -> List[float]:
         """Calculate returns for a given period based on weights"""
@@ -162,7 +160,6 @@ class BacktestEngine:
             evaluation_date = day + offset
             # We check the close date in the future to get the return of the portfolio
 
-
             weights_series = pd.Series(portfolio.get_weight_table())
             weights_history[day] = weights_series
             # Fetch prices from `data['Close']` for both date and evaluation_date
@@ -178,8 +175,6 @@ class BacktestEngine:
             except KeyError as e:
                 print(f"Missing ticker in data: {e}")
                 continue  # skip this date
-
- 
 
             # Convert to DataFrames
             df_prices_portfolio = pd.Series(prices_portfolio)
@@ -203,7 +198,6 @@ class BacktestEngine:
 
             portfolio_return = weighted_returns.sum()
             returns_series_timeseries.at[day] = portfolio_return
-        
         
         # ======= Compute Metrics =======
         returns = returns_series_timeseries.dropna()
