@@ -6,7 +6,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry, combine_signals_from_df
+from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
+from Utils.df_helper import combine_signals_from_df
 import logging
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any
@@ -132,7 +133,7 @@ class BacktestEngine:
         signal_weights = {signal_name: 1.0/len(combination) for signal_name in combination}
         
         # Combine signals (you'll need to import this function)
-        # from Utils.signals import combine_signals_from_df
+        # from Utils.df_help import combine_signals_from_df
         combined_df = combine_signals_from_df(df_scores, tickers, signal_weights)
         combined_df_no_nan = combined_df.dropna(how="all", axis=0)
 
