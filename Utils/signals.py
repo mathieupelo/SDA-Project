@@ -1,3 +1,4 @@
+import datetime
 
 import pandas as pd
 import yfinance as yf
@@ -45,7 +46,7 @@ class SignalBase(ABC):
         self.parameters = parameters or {}
     
     @abstractmethod
-    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: datetime.date) -> List[Tuple[str, float]]:
         """Calculate signal for given tickers on specific date"""
         pass
     
@@ -80,7 +81,7 @@ class RSISignal(SignalBase):
         super().__init__("RSI", {"period": period})
         self.period = period
     
-    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: datetime.date) -> List[Tuple[str, float]]:
         import talib as ta
         print("Calculating RSI signals... for date:", date)
         signal_scores = []
@@ -117,7 +118,7 @@ class MACDSignal(SignalBase):
         self.slow_period = slow_period
         self.signal_period = signal_period
     
-    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: datetime.date) -> List[Tuple[str, float]]:
         import talib as ta
         print("Calculating MACD signals... for date:", date)
         signal_scores = []
@@ -151,7 +152,7 @@ class SMASignal(SignalBase):
         self.short_period = short_period
         self.long_period = long_period
     
-    def calculate(self, data: pd.DataFrame, tickers: List[str], date: pd.Timestamp) -> List[Tuple[str, float]]:
+    def calculate(self, data: pd.DataFrame, tickers: List[str], date: datetime.date) -> List[Tuple[str, float]]:
         import talib as ta
         print("Calculating SMA signals... for date:", date)
         signal_scores = []

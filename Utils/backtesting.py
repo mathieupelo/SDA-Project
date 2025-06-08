@@ -98,20 +98,21 @@ class BacktestEngine:
         
                         # config: BacktestConfig) -> BacktestResult:
 
-        date_range_eval = pd.date_range(start=config.start_date, end=config.end_date)
+        time_stamp_range = pd.date_range(start=config.start_date, end=config.end_date)
+        date_range = [time_stamp.date() for time_stamp in time_stamp_range]
         dataset_scores = []
         # Initialize an empty DataFrame to store scores
         returns_series_timeseries = pd.Series(dtype=float)
         weights_history = {}
 
-        for date in date_range_eval:
-            row = {('date', ''): date}
+        for day in date_range:
+            row = {('date', ''): day}
             
             # Only calculate signals that are in the current combination
             for signal_name in combination:
                 signal = self.signal_registry.get_signal(signal_name)
                 if signal is not None:
-                    scores = signal.calculate(data, tickers, date)
+                    scores = signal.calculate(data, tickers, day)
                     
                     for ticker, value in scores:
                         row[(signal_name, ticker)] = value
@@ -137,11 +138,11 @@ class BacktestEngine:
 
         # TODO : API.getpriceshistory 
 
-        for date, row in combined_df_no_nan.iterrows():
+        for day, row in combined_df_no_nan.iterrows():
             # Convert to Timestamp and subtract 1 year
-            start_minus_1_year = pd.to_datetime(date) - get_date_offset('yearly')
+            start_minus_1_year = pd.to_datetime(day) - get_date_offset('yearly')
             
-            last_year_data = data.loc[start_minus_1_year.date() :pd.to_datetime(date).date()]
+            last_year_data = data.loc[start_minus_1_year.date() :pd.to_datetime(day).date()]
 
             solver = construct_portfolio_solver(
                 conn=conn,  # Replace with actual connection if needed
@@ -149,20 +150,20 @@ class BacktestEngine:
                 config=solver_config
             )
 
-            portfolio = solver.solve(date, last_year_data)
+            portfolio = solver.solve(day, last_year_data)
 
             #TODO: Calculate returns based on portfolio weights and price histories
             offset = get_date_offset(config.evaluation_period)
-            evaluation_date = date + offset
+            evaluation_date = day + offset
             # We check the close date in the future to get the return of the portfolio
 
 
             weights_series = pd.Series(portfolio.get_weight_table())
-            weights_history[date] = weights_series
+            weights_history[day] = weights_series
             # Fetch prices from `data['Close']` for both date and evaluation_date
             try:
                 prices_portfolio = {
-                    ticker: data[ticker].get(date, None)
+                    ticker: data[ticker].get(day, None)
                     for ticker in tickers
                 }
                 prices_evaluation = {
@@ -196,7 +197,7 @@ class BacktestEngine:
             weighted_returns = returns_series * weights_series
 
             portfolio_return = weighted_returns.sum()
-            returns_series_timeseries.at[date] = portfolio_return
+            returns_series_timeseries.at[day] = portfolio_return
         
         
         # ======= Compute Metrics =======
