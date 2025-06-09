@@ -1,6 +1,5 @@
 ﻿from collections import defaultdict
 from typing import Dict
-from Utils.backtest_result import BacktestResult
 from data.signal import get_enabled_signals
 from data.utils.database import connect_to_database
 from data.portfolio import *
@@ -181,16 +180,16 @@ class API:
 
 
 
-    def store_portfolio_results(self, portfolio: Portfolio, signals: dict[SignalBase, float], yearly_return: float):
+    def store_portfolio_results(self, portfolio: Portfolio, signal_weights: dict[str, float], yearly_return: float):
         """
         Caches the provided portfolio and its return to the database.
         Args:
             portfolio: Portfolio to store into the database.
-            signals: A table indexed by the signals used for the computation of the portfolio, where values are the weights.
+            signal_weights: A table indexed by the signals used for the computation of the portfolio, where values are the weights.
             yearly_return: Yearly return of that portfolio.
         """
         conn = connect_to_database(self._host)
-        cache_portfolio_data(conn, portfolio, signals, yearly_return)
+        cache_portfolio_data(conn, portfolio, signal_weights, yearly_return)
 
 
 

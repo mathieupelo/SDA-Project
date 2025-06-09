@@ -1,8 +1,6 @@
 ﻿import uuid
 from typing import List
 from mysql.connector.abstracts import MySQLConnectionAbstract
-from data.signal import ensure_signals_are_stored_in_db
-from signals.signal_base import SignalBase
 from data.solver_config import SolverConfig
 from data.stock import Stock
 from datetime import date, timedelta
@@ -103,7 +101,7 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
 def cache_portfolio_data(
         conn: MySQLConnectionAbstract,
         portfolio: Portfolio,
-        signals: dict[SignalBase, float],
+        signals: dict[str, float],
         yearly_return: float):
     """
     Caches a Portfolio into the database.
@@ -112,7 +110,6 @@ def cache_portfolio_data(
     - conn: The MySQL connection object.
     - portfolio: The Portfolio object to insert.
     """
-    ensure_signals_are_stored_in_db(conn, signals)
     cursor = conn.cursor()
 
     # Cache to 'portfolio' database table.
@@ -133,7 +130,7 @@ def cache_portfolio_data(
         """, stock_rows)
 
     signal_rows = [
-        (portfolio.id, signal.name, weight)
+        (portfolio.id, signal, weight)
         for signal, weight in signals.items()
     ]
 
