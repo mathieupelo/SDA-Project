@@ -1,6 +1,6 @@
 ﻿from datetime import date, timedelta
 from mysql.connector.abstracts import MySQLConnectionAbstract
-from data.stocks import Stock
+from data.stock import Stock
 import pandas as pd
 
 

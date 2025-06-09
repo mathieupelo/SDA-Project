@@ -2,19 +2,14 @@
 import sys
 import os
 
+from signals.macd import MACDSignal
+from signals.rsi import RSISignal
+from signals.sma import SMASignal
+
 # Add project root (the parent of 'scripts') to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Callable, Any
-import itertools
-from dataclasses import dataclass
-from datetime import datetime, timedelta, date
-from data.stocks import *
 from Utils.backtesting import *
-from data.utils.database import connect_to_database
-from data.stocks import get_stocks
 from Utils.df_helper import *
 from data.api import API
 

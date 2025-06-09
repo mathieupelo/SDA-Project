@@ -8,7 +8,7 @@ from signals.signal_base import SignalBase
 
 class RSISignal(SignalBase):
     def __init__(self, period: int = 14):
-        super().__init__("RSI", {"period": period})
+        super().__init__("RSI", "RSI", {"period": period})
         self.period = period
 
     def calculate(self, close_prices: pd.DataFrame, ticker: str, day: date) -> float:

@@ -5,41 +5,16 @@ import os
 # Add project root (the parent of 'scripts') to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-
-from signals.sma import SMASignal
-from signals.macd import MACDSignal
-from signals.rsi import RSISignal
-from signals.signal_base import SignalBase
 from signals.signal_registry import SignalRegistry
 from Utils.df_helper import combine_signals_scores
-import logging
-import pandas as pd
-from typing import Dict, List, Tuple, Callable, Any
 from dataclasses import dataclass
-from data.utils.database import connect_to_database
-from data.solver_config import SolverConfig
 import itertools
-from Utils.portfolio_solver import PortfolioSolver, construct_portfolio_solver
-from datetime import datetime, date
+from Utils.portfolio_solver import construct_portfolio_solver
 import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
-from data.portfolios import *
+from data.portfolio import *
 
-
-@dataclass
-class BacktestResult:
-    """Results from backtesting"""
-    combination_name: str
-    total_return: float
-    annualized_return: float
-    sharpe_ratio: float
-    max_drawdown: float
-    win_rate: float
-    volatility: float
-    returns_series: pd.Series
-    weights_history: pd.DataFrame
-    signal_history: pd.DataFrame
 
 @dataclass
 class BacktestConfig:

@@ -9,7 +9,7 @@ from signals.signal_base import SignalBase
 
 class MACDSignal(SignalBase):
     def __init__(self, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9, max_lookback_period: int = 120):
-        super().__init__("MACD", {
+        super().__init__("MACD", "MACD", {
             "fast_period": fast_period,
             "slow_period": slow_period,
             "signal_period": signal_period,

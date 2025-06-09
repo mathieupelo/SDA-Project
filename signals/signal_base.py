@@ -7,7 +7,8 @@ import pandas as pd
 class SignalBase(ABC):
     """Abstract base class for all signals"""
 
-    def __init__(self, name: str, parameters: Dict = None):
+    def __init__(self, pid: str, name: str, parameters: Dict = None):
+        self.id = pid
         self.name = name
         self.parameters = parameters or {}
 

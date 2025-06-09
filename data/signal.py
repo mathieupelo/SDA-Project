@@ -1,7 +1,8 @@
 ﻿import datetime
-from typing import List, Tuple
+from typing import List, Tuple, Iterable
 from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.utils.database import connect_to_database
+from signals.signal_base import SignalBase
 
 
 def get_enabled_signals(conn: MySQLConnectionAbstract) -> set[str]:
@@ -119,3 +120,31 @@ def get_missing_signal_scores_for_ticker(host: str, ticker: str) -> List[Tuple[s
 
     rows = cursor.fetchall()
     return [(signal_id, latest_date) for signal_id, latest_date, _ in rows]
+
+
+def ensure_signals_are_stored_in_db(conn: MySQLConnectionAbstract, signals: Iterable[SignalBase]):
+    """
+    Ensures all signals exist in the database by their id, inserting any missing ones with both id and name.
+
+    Parameters:
+    - conn: The MySQL connection object.
+    - signals: An iterable of SignalBase objects.
+    """
+    cursor = conn.cursor()
+    signals = list(signals)
+    ids = [s.id for s in signals]
+
+    if not ids:
+        return
+
+    # Step 1: Find existing signal IDs
+    placeholders = ', '.join(['%s'] * len(ids))
+    cursor.execute(f"SELECT id FROM sda.signal WHERE id IN ({placeholders})", ids)
+    existing_ids = {row[0] for row in cursor.fetchall()}
+
+    # Step 2: Insert missing signals (both id and name)
+    to_insert = [(s.id, s.name) for s in signals if s.id not in existing_ids]
+
+    if to_insert:
+        cursor.executemany("INSERT INTO sda.signal (id, name) VALUES (%s, %s)", to_insert)
+        conn.commit()

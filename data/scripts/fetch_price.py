@@ -1,6 +1,6 @@
 ﻿from datetime import date, timedelta
 from data.utils.database import connect_to_database
-from data.stocks import get_stocks
+from data.stock import get_stocks
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List
 import yfinance as yf

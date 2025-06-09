@@ -1,10 +1,11 @@
 ﻿from collections import defaultdict
 from typing import Dict
-from data.signals import get_enabled_signals
+from Utils.backtest_result import BacktestResult
+from data.signal import get_enabled_signals
 from data.utils.database import connect_to_database
-from data.portfolios import *
+from data.portfolio import *
 from data.stock_price import *
-from data.stocks import *
+from data.stock import *
 from data.utils.yahoo_finance_scripts import *
 from data.scripts.fetch_price import fetch_prices
 import logging
@@ -190,3 +191,10 @@ class API:
         """
         conn = connect_to_database(self._host)
         cache_portfolio_data(conn, portfolio, signals, yearly_return)
+
+
+
+    def store_backtest_results(self, result: BacktestResult, portfolios: List[Portfolio]):
+        conn = connect_to_database(self._host)
+
+        pass

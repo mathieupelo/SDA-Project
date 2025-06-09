@@ -1,10 +1,10 @@
-﻿from decimal import Decimal
-from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿from mysql.connector.abstracts import MySQLConnectionAbstract
+from data.signal import ensure_signals_are_stored_in_db
 from signals.signal_base import SignalBase
 from data.solver_config import SolverConfig
-from data.stocks import Stock
+from data.stock import Stock
 from datetime import date
-from typing import Iterable
+
 
 class Portfolio:
     class StockMetadata:
@@ -133,33 +133,3 @@ def cache_portfolio_data(
         """, signal_rows)
 
     conn.commit()
-
-
-
-def ensure_signals_are_stored_in_db(conn: MySQLConnectionAbstract, signals: Iterable[SignalBase]):
-    """
-    Ensures all signals exist in the database by their name (signal.name),
-    inserting any missing ones.
-
-    Parameters:
-    - conn: The MySQL connection object.
-    - signals: An iterable of SignalBase objects.
-    """
-    cursor = conn.cursor()
-    signals = list(signals)
-    names = [s.name for s in signals]
-
-    if not names:
-        return
-
-    # Step 1: Find existing signal names
-    placeholders = ', '.join(['%s'] * len(names))
-    cursor.execute(f"SELECT id FROM sda.signal WHERE id IN ({placeholders})", names)
-    existing_names = {row[0] for row in cursor.fetchall()}
-
-    # Step 2: Insert missing
-    to_insert = list({signal.name for signal in signals if signal.name not in existing_names})
-
-    if to_insert:
-        cursor.executemany("INSERT INTO sda.signal (id) VALUES (%s)", to_insert)
-        conn.commit()

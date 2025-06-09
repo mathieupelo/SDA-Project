@@ -10,7 +10,7 @@ from signals.signal_base import SignalBase
 
 class SMASignal(SignalBase):
     def __init__(self, short_period: int = 50, long_period: int = 200):
-        super().__init__("SMA", {"short_period": short_period, "long_period": long_period})
+        super().__init__("SMA", "SMA", {"short_period": short_period, "long_period": long_period})
         self.short_period = short_period
         self.long_period = long_period
 

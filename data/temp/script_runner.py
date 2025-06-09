@@ -2,7 +2,7 @@
 import pandas as pd
 import time
 from data.api import API
-from data.stocks import get_stocks
+from data.stock import get_stocks
 from data.utils.database import connect_to_database
 
 api = API('192.168.0.165')

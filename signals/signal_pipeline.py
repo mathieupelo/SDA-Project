@@ -1,5 +1,5 @@
 ﻿from data.api import API
-from data.signals import store_signal_scores_for_ticker, get_missing_signal_scores_for_ticker
+from data.signal import store_signal_scores_for_ticker, get_missing_signal_scores_for_ticker
 from datetime import date, timedelta, datetime
 from data.utils.database import connect_to_database
 from signals.macd import MACDSignal

@@ -1,7 +1,7 @@
 ﻿from datetime import date
 from cvxopt import matrix, solvers
-from data.portfolios import Portfolio
-from data.stocks import *
+from data.portfolio import Portfolio
+from data.stock import *
 from data.utils.database import *
 from data.solver_config import SolverConfig
 import uuid
