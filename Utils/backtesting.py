@@ -6,8 +6,12 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
-from Utils.df_helper import combine_signals_from_df, combine_signals_scores
+from signals.sma import SMASignal
+from signals.macd import MACDSignal
+from signals.rsi import RSISignal
+from signals.signal_base import SignalBase
+from signals.signal_registry import SignalRegistry
+from Utils.df_helper import combine_signals_scores
 import logging
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any

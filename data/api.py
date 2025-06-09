@@ -141,16 +141,17 @@ class API:
         A table of signal scores indexed by date, then by ticker, then by signal id.
         (date -> ticker -> signal_id) 3d dictionary
         """
-        conn = connect_to_database(self._host)
-        cursor = conn.cursor()
-
-        # Step 1: Resolve stock IDs
         if not tickers or not signals:
             return { }
 
+        conn = connect_to_database(self._host)
+        cursor = conn.cursor()
         placeholders_ticker = ','.join(['%s'] * len(tickers))
         cursor.execute(f"SELECT id, ticker FROM stock WHERE ticker IN ({placeholders_ticker})", tickers)
         stock_id_map = {ticker: stock_id for stock_id, ticker in cursor.fetchall()}
+
+        if len(stock_id_map) != len(tickers):
+            print(f'WARNING | Unknown tickers: {[ticker for ticker in tickers if ticker not in stock_id_map]}')
 
         stock_ids = list(stock_id_map.values())
         if not stock_ids:

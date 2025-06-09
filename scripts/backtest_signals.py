@@ -11,7 +11,6 @@ from typing import Dict, List, Tuple, Callable, Any
 import itertools
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date
-from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
 from data.stocks import *
 from Utils.backtesting import *
 from data.utils.database import connect_to_database

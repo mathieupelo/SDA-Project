@@ -1,6 +1,6 @@
 ﻿from decimal import Decimal
 from mysql.connector.abstracts import MySQLConnectionAbstract
-from Utils.signals import SignalBase
+from signals.signal_base import SignalBase
 from data.solver_config import SolverConfig
 from data.stocks import Stock
 from datetime import date

@@ -8,7 +8,7 @@ import unittest
 import pandas as pd
 import numpy as np
 from typing import List, Dict
-from Utils.df_helper import combine_signals_from_df
+from Utils.df_helper import combine_signals_scores
 
 
 # Assume your function is imported:
@@ -20,17 +20,17 @@ class TestCombineSignalsFromDF(unittest.TestCase):
         dates = pd.date_range(start='2020-01-01', periods=3)
         tickers = ['AAPL', 'MSFT']
         signals = ['RSI', 'MACD', 'SMA']
-        
+
         columns = pd.MultiIndex.from_tuples(
             [(sig, tic) for sig in signals for tic in tickers]
         )
-        
+
         signal_scores = [
             [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],  # Day 1
             [0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # Day 2
             [0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # Day 3
         ]
-        
+
         signal_scores_dataframe = pd.DataFrame(signal_scores, index=dates, columns=columns)
 
         signal_weights = {
