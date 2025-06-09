@@ -10,21 +10,17 @@ import numpy as np
 from typing import Dict, List, Tuple, Callable, Any
 import itertools
 from dataclasses import dataclass
-from datetime import datetime, timedelta, date as dt
+from datetime import datetime, timedelta, date
 from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
 from data.stocks import *
 from Utils.backtesting import *
 from data.utils.database import connect_to_database
 from data.stocks import get_stocks
-
-
-# ============================================================================
-# 1. SIGNAL INTERFACE AND REGISTRY
-# ============================================================================
+from Utils.df_helper import *
+from data.api import API
 
 def setup_backtesting_system():
     """Example of how to set up the backtesting system"""
-    
     # Initialize signal registry
     signal_registry = SignalRegistry()
     
@@ -83,7 +79,7 @@ def run_backtests():
     )
 
     # TODO: Use date from DateTime in BacktestConfig and derive start and end from config.
-    data = api.get_price_history_for_tickers(tickers, dt(2020, 1, 1), dt(2025, 1, 1))
+    data = api.get_price_history_for_tickers(tickers, date(2020, 1, 1), date(2025, 1, 1))
 
     # If you want DataFrame again
     # data = pd.DataFrame.from_dict(data)
@@ -174,41 +170,18 @@ def run_backtests():
 def run_single_backtest():
     print("Running single backtest")
 
-
-    api = API('192.168.0.165')
-    api.ensure_database_is_up_to_date()
-
-
     # TODO: Call function instead
-    conn = connect_to_database('192.168.0.165')
-    stocks = get_stocks(conn)
-    tickers = [stock.ticker for stock in stocks]
+    #tickers = ['UBI.PA', 'MSFT', 'TTWO', 'EA', 'SONY']  # Example tickers`
+    tickers = ['TTWO', 'MSFT', 'META', 'EA', 'SONY']
+    start_dt  = date(2010, 1, 1)
+    end_dt = date(2025, 1, 1)
+
+    data_df = get_price_history_for_tickers_df(tickers, 
+                                               start_date=start_dt, 
+                                               end_date=end_dt)
     
-    #tickers = ['AMZN', 'GOOG', 'META']  # Add S&P 500 index as a benchmark
-    #tickers = get_stocks_universe("Universe_name")
-
-    tickers = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOG', 'TSLA', 'EA', 'SONY']  # Example tickers`
-    tickers = ['AAPL', 'MSFT', 'META', 'EA', 'SONY']  # Example tickers`
-    data = yf.download(tickers, start='2010-01-01', end='2025-01-01')
-    #data = yf.download(tickers, start='2019-01-01', end='2020-01-01')
-    print(data)
-
-    data_from_db = api.get_price_history_for_tickers(tickers, start_date=dt(2010, 1, 1), end_date=dt(2025, 1, 1))
-    df_data = pd.DataFrame.from_dict(data_from_db, orient='columns')
     print("df_data DataFrame:")
-    df_data = df_data.T.dropna(how="all", axis=0)
-    df_data = df_data[sorted(df_data.columns)]
-    df_data.columns.name = 'Ticker'
-    df_data.index.name = 'Date'
-    print(df_data)
-
-
-    close_df = data['Close']
-    close_df = close_df[sorted(close_df.columns)]
-    #close_df.index.name = 'Ticker'
-    print("BD prices DataFrame:")
-    print(df_data)
-
+    print(data_df)
 
     signal_registry = setup_backtesting_system()
     # Before callinb BacktestEngine, make sure we have a signal reistry and the signals registered on
@@ -223,22 +196,18 @@ def run_single_backtest():
         holding_period=20
     )
 
-    available_signals = signal_registry.list_signals()
-    print(f"available_signals : ", available_signals)
-
     signal_combination = ['RSI', 'MACD', 'SMA']  # Example of a single combination
 
     print(f"Backtesting signal combination : {signal_combination}")
     backtest_results = backtest_engine.run_backtest(
         tickers=tickers,
-        data=df_data,
+        data=data_df,
         combination=signal_combination,
         config=config
     )
 
-    print("Single backtest completed successfully.")
     plot_backtest_results(backtest_results)
-    print("Single backtest plotted.")
+
 
 
 if __name__ == "__main__":
