@@ -194,7 +194,12 @@ class API:
 
 
 
-    def store_backtest_results(self, result: BacktestResult, portfolios: List[Portfolio]):
-        conn = connect_to_database(self._host)
+    def store_backtest_results(
+        self,
+        portfolios: List[Portfolio],
+        start_date: date,
+        end_date: date,
+        execution_time: timedelta):
 
-        pass
+        conn = connect_to_database(self._host)
+        cache_backtest_result(conn, portfolios, start_date, end_date, execution_time)

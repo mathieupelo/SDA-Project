@@ -1,9 +1,11 @@
-﻿from mysql.connector.abstracts import MySQLConnectionAbstract
+﻿import uuid
+from typing import List
+from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.signal import ensure_signals_are_stored_in_db
 from signals.signal_base import SignalBase
 from data.solver_config import SolverConfig
 from data.stock import Stock
-from datetime import date
+from datetime import date, timedelta
 
 
 class Portfolio:
@@ -63,13 +65,17 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
         Portfolio | None if the stock does not exist.
     """
     cursor = conn.cursor()
-    cursor.execute("SELECT date FROM portfolio WHERE id = '%s'" % portfolio_id)
+    cursor.execute("""
+                   SELECT date, risk_aversion, max_weight
+                   FROM portfolio
+                   WHERE id = %s
+                   """, (portfolio_id,))
     row = cursor.fetchone()
 
     if not row:
         return None
 
-    creation_date = row[0]
+    creation_date, risk_aversion, max_weight = row
 
     # Get associated stocks from portfolio_stock
     cursor.execute("""
@@ -86,7 +92,12 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
         metadata = Portfolio.StockMetadata(weight, alpha_score)
         stocks[stock] = metadata
 
-    return Portfolio(p_id=portfolio_id, creation_date=creation_date, stocks=stocks)
+    config = SolverConfig(
+        risk_aversion=risk_aversion,
+        max_weight_threshold=max_weight
+    )
+
+    return Portfolio(p_id=portfolio_id, creation_date=creation_date, stocks=stocks, config=config)
 
 
 def cache_portfolio_data(
@@ -131,5 +142,47 @@ def cache_portfolio_data(
             INSERT INTO portfolio_signal (portfolio_id, signal_id, weight)
             VALUES (%s, %s, %s)
         """, signal_rows)
+
+    conn.commit()
+
+
+
+def cache_backtest_result(
+        conn: MySQLConnectionAbstract,
+        portfolios: List[Portfolio],
+        start_date: date,
+        end_date: date,
+        execution_time: timedelta):
+    """
+    Caches the result of a backtest into the database.
+
+    Parameters:
+    - conn: The MySQL connection object.
+    - portfolios: The portfolios computed by the backtest.
+    """
+    today = date.today()
+    cursor = conn.cursor()
+    backtest_id = uuid.uuid1()
+
+    # Step 1: Insert into backtest
+    cursor.execute("""
+        INSERT INTO backtest (id, start_date, end_date, execution_date, execution_time)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        backtest_id,
+        start_date,
+        end_date,
+        today,
+        execution_time
+    ))
+
+    # Step 2: Insert into backtest_portfolio
+    cursor.executemany("""
+        INSERT INTO backtest_portfolio (backtest_id, portfolio_id)
+        VALUES (%s, %s)
+    """, [
+        (backtest_id, portfolio.id)
+        for portfolio in portfolios
+    ])
 
     conn.commit()
