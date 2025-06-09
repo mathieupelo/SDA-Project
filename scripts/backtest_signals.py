@@ -171,8 +171,9 @@ def run_single_backtest():
     print("Running single backtest")
 
     # TODO: Call function instead
-    #tickers = ['UBI.PA', 'MSFT', 'TTWO', 'EA', 'SONY']  # Example tickers`
-    tickers = ['TTWO', 'MSFT', 'META', 'EA', 'SONY']
+    
+
+    tickers = ['TTWO', 'MSFT', 'EA', 'SONY']
     start_dt  = date(2010, 1, 1)
     end_dt = date(2025, 1, 1)
 

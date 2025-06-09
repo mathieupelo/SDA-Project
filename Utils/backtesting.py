@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 from Utils.signals import SignalBase, RSISignal, MACDSignal, SMASignal, SignalRegistry
-from Utils.df_helper import combine_signals_from_df
+from Utils.df_helper import combine_signals_from_df, combine_signals_scores
 import logging
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any
@@ -21,6 +21,7 @@ import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
 from data.portfolios import *
+
 
 @dataclass
 class BacktestResult:
@@ -92,7 +93,7 @@ class BacktestEngine:
     def run_backtest(self, 
                           data: pd.DataFrame, 
                           tickers: List[str],
-                          combination: SignalCombination,
+                          combination: List[str],
                           config: BacktestConfig) -> BacktestResult:
         
                         # config: BacktestConfig) -> BacktestResult:
@@ -107,41 +108,29 @@ class BacktestEngine:
         #TODO: Remove all dates that are not in the data
         # Filter date_range to only include dates present in the data
         date_range = [day for day in date_range if day in data.index]
-        for day in date_range:
 
-            row = {('date', ''): day}
-            
-            # Only calculate signals that are in the current combination
-            for signal_name in combination:
-                signal = self.signal_registry.get_signal(signal_name)
-                if signal is not None:
-                    scores = signal.calculate(data, tickers, day)
-                    
-                    for ticker, value in scores:
-                        row[(signal_name, ticker)] = value
-                else:
-                    print(f"Warning: Signal {signal_name} not found in registry")
-            
-            dataset_scores.append(row)
 
-        df_scores = pd.DataFrame(dataset_scores)
-        df_scores.columns = pd.MultiIndex.from_tuples(df_scores.columns)
-        
+
+        api = API('192.168.0.165')
+        signal_scores = api.get_signal_scores_table_for_tickers(
+            tickers=tickers,
+            signals=combination,
+            first_day=pd.to_datetime(config.start_date).date(),
+            last_day=pd.to_datetime(config.end_date).date()
+        )
+
         # Create equal weights for the combination
         signal_weights = {signal_name: 1.0/len(combination) for signal_name in combination}
-        
-        # Combine signals (you'll need to import this function)
-        # from Utils.df_help import combine_signals_from_df
-        combined_df = combine_signals_from_df(df_scores, tickers, signal_weights)
-        combined_df_no_nan = combined_df.dropna(how="all", axis=0)
 
+        combined_scores_df = combine_signals_scores(signal_scores, signal_weights).dropna(how='all', axis=0)
+        print(f"combined_scores_df : {combined_scores_df}")
+
+    
         # Initialize solver configuration for portfolio optimization
         conn = connect_to_database('192.168.0.165')
         solver_config = SolverConfig(risk_aversion = 0)
 
-        # TODO : API.getpriceshistory 
-
-        for day, row in combined_df_no_nan.iterrows():
+        for day, row in combined_scores_df.iterrows():
             # Convert to Timestamp and subtract 1 year
             start_minus_1_year = pd.to_datetime(day) - get_date_offset('yearly')
             
@@ -219,7 +208,7 @@ class BacktestEngine:
             volatility=volatility,
             returns_series=returns_series_timeseries,
             weights_history=pd.DataFrame(weights_history).T,
-            signal_history=df_scores
+            signal_history=[]
     )
 
             

@@ -42,7 +42,7 @@ class PortfolioSolver:
 
         # === Compute daily returns ===
         # TODO: Drop all na instead of just dropna?
-        var_returns = price_history.pct_change().dropna()
+        var_returns = price_history.astype(float).pct_change().dropna()
 
         # === Compute covariance matrix (sigma) ===
         sigma: np.ndarray = var_returns.cov().values
