@@ -1,4 +1,6 @@
 ﻿from collections import defaultdict
+from typing import Dict
+from data.signals import get_enabled_signals
 from data.utils.database import connect_to_database
 from data.portfolios import *
 from data.stock_price import *
@@ -16,7 +18,18 @@ class API:
         """
         self._host = host
 
-    
+
+    def get_tickers_from_all_universes(self) -> List[str]:
+        """
+        Retrieves the list of ticker symbols from a universe.
+        """
+        # TODO: Fetch only stocks in the universe, not all stocks!
+        conn = connect_to_database(self._host)
+        stocks = get_stocks(conn)
+        tickers = [stock.ticker for stock in stocks]
+        return tickers
+
+
     def get_tickers_in_universe(self, universe_name: str) -> List[str]:
         """
         Retrieves the list of ticker symbols from a universe.
@@ -26,11 +39,23 @@ class API:
         Returns:
             The list of ticker symbols from the universe.
         """
-        # TODO
-        pass
+        # TODO: Fetch only stocks in the universe, not all stocks!
+        return self.get_tickers_from_all_universes()
+
+
+    def get_enabled_signals(self) -> set[str]:
+        """
+        Gets the list of enabled signals, by their id.
+        """
+        conn = connect_to_database(self._host)
+        signals = get_enabled_signals(conn)
+        return signals
 
 
     def ensure_database_is_up_to_date(self):
+        """
+        Verifies that prices for all stocks have been pulled up to yesterday.
+        """
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
         today = date.today()
@@ -70,7 +95,12 @@ class API:
 
 
 
-    def get_price_history_for_tickers(self, tickers: List[str], start_date: date, end_date: date) -> dict[date, dict[str, float]]:
+    def get_price_history_for_tickers(
+            self,
+            tickers: List[str],
+            start_date: date | None = None,
+            end_date: date | None = None
+    ) -> dict[date, dict[str, float]]:
         """
         Args:
             tickers: list of ticker symbols to fetch the price_history for
@@ -80,6 +110,8 @@ class API:
         Returns:
             the price history table indexed by date, then by ticker symbol
         """
+        start_date = start_date or date(1800, 1, 1)
+        end_date = end_date or date.today()
         matrix: dict[date, dict[str, float]] = defaultdict(dict)
         conn = connect_to_database(self._host)
         stocks = get_stocks(conn)
@@ -88,6 +120,62 @@ class API:
         fill_stocks_price_history_matrix_from_yahoo_finance(matrix, start_date, end_date, [t for t in tickers if all(s.ticker != t for s in stocks)])
 
         return dict(matrix)
+
+
+    def get_signal_scores_table_for_tickers(
+            self,
+            tickers: list[str],
+            signals: list[str],
+            first_day: date,
+            last_day: date,
+    ) -> dict[date, dict[str, dict[str, float]]]:
+        """
+        Fetches the database for the signal scores table for tickers for dates between first and last days.
+        Args:
+            tickers: list of ticker symbols to fetch the signal scores for.
+            signals: list of signals to fetch the ticker scores for.
+            first_day: first date in the date range to fetch the scores for.
+            last_day: last date in the date range to fetch the scores for.
+
+        Returns:
+        A table of signal scores indexed by date, then by ticker, then by signal id.
+        (date -> ticker -> signal_id) 3d dictionary
+        """
+        conn = connect_to_database(self._host)
+        cursor = conn.cursor()
+
+        # Step 1: Resolve stock IDs
+        if not tickers or not signals:
+            return { }
+
+        placeholders_ticker = ','.join(['%s'] * len(tickers))
+        cursor.execute(f"SELECT id, ticker FROM stock WHERE ticker IN ({placeholders_ticker})", tickers)
+        stock_id_map = {ticker: stock_id for stock_id, ticker in cursor.fetchall()}
+
+        stock_ids = list(stock_id_map.values())
+        if not stock_ids:
+            return { }
+
+        # Step 3: Fetch signal scores in date range
+        placeholders_stock = ','.join(['%s'] * len(stock_ids))
+        placeholders_signal = ','.join(['%s'] * len(signals))
+        query = f"""
+            SELECT ss.date, st.ticker, sg.name, ss.score
+            FROM signal_score ss
+            JOIN stock st ON ss.stock_id = st.id
+            JOIN `signal` sg ON ss.signal_id = sg.id
+            WHERE ss.date BETWEEN %s AND %s
+              AND ss.stock_id IN ({placeholders_stock})
+              AND ss.signal_id IN ({placeholders_signal})
+        """
+        cursor.execute(query, [first_day, last_day] + stock_ids + signals)
+
+        # Step 4: Structure the result
+        result: Dict[date, Dict[str, Dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
+        for row_date, ticker, signal_name, score in cursor.fetchall():
+            result[row_date][ticker][signal_name] = float(score)
+
+        return dict(result)
 
 
 

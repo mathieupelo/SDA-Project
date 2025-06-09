@@ -3,6 +3,43 @@ from data.api import API
 import pandas as pd
 from typing import Dict, List, Tuple, Callable, Any
 
+def combine_signals_scores(
+    signal_scores: Dict[date, Dict[str, Dict[str, float]]],
+    signal_weights: Dict[str, float]
+) -> pd.DataFrame:
+
+    # Sort dates for deterministic ordering
+    sorted_dates = sorted(signal_scores.keys())
+    combined_scores = { }
+
+    for dt in sorted_dates:
+        day_data = signal_scores[dt]
+        combined_day = { }
+
+        for ticker, ticker_signals in day_data.items():
+            weighted_sum = 0.0
+            total_weight = 0.0
+
+            for signal_name, weight in signal_weights.items():
+                if signal_name in ticker_signals:
+                    weighted_sum += ticker_signals[signal_name] * weight
+                    total_weight += weight
+                else:
+                    print(f"Warning: signal '{signal_name}' missing for {ticker} on {dt}")
+
+            combined_day[ticker] = weighted_sum / total_weight if total_weight > 0 else 0.0
+
+        combined_scores[dt] = combined_day
+
+    # Convert to DataFrame
+    df_result = pd.DataFrame.from_dict(combined_scores, orient='index')
+    df_result.index.name = 'date'
+    df_result.sort_index(inplace=True)
+
+    return df_result
+
+
+
 def combine_signals_from_df(df_scores: pd.DataFrame, tickers: List[str], signal_weights: Dict[str, float]) -> pd.DataFrame:
     # Prepare a DataFrame to store combined signals with the same index as input
     combined_scores = pd.DataFrame(index=df_scores.index)

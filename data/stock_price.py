@@ -13,51 +13,36 @@ def fill_stocks_price_history_matrix(
     """
     Fetches historical stock prices for a given stock list between the given first and last days and stores it into
     the matrix.
-
-    Parameters:
-        conn: MySQL connection object.
-        matrix: matrix to fill the historical stock prices in.
-        first_day: First day to fetch the historical stock prices in, included in the range.
-        last_day: Last day to fetch the historical stock prices for, excluded in the range.
-        stocks: List of stocks to fetch the historical stock prices for.
     """
 
-    if len(stocks) == 0:
+    if not stocks:
         return
-
-    # For tracking dates we pulled from DB only
-    db_dates_seen: dict[str, set[date]] = { }
-    expected_dates = {first_day + timedelta(days=i) for i in range((last_day - first_day).days)}
 
     sql_params = [stock.id for stock in stocks] + [str(first_day), str(last_day)]
     sql_placeholders = ', '.join(['%s'] * len(stocks))
     sql = f"""
-                    SELECT sp.date, s.ticker, sp.close_price
-                    FROM stock_price sp
-                    JOIN stock s ON sp.stock_id = s.id
-                    WHERE s.id IN ({sql_placeholders})
-                      AND sp.date >= %s AND sp.date < %s
-                    ORDER BY sp.date
-                """
+        SELECT sp.date, s.ticker, sp.close_price
+        FROM stock_price sp
+        JOIN stock s ON sp.stock_id = s.id
+        WHERE s.id IN ({sql_placeholders})
+          AND sp.date >= %s AND sp.date < %s
+        ORDER BY sp.date
+    """
 
     with conn.cursor() as cursor:
         cursor.execute(sql, sql_params)
         rows = cursor.fetchall()
 
-    for time, ticker, price in rows:
-        if db_dates_seen.get(ticker) is None:
-            db_dates_seen[ticker] = set()
+    seen_tickers = set()
 
+    for time, ticker, price in rows:
         day = pd.Timestamp(time).date()
         matrix[day][ticker] = float(price) if price else None
-        db_dates_seen[ticker].add(day)
+        seen_tickers.add(ticker)
 
-    for stock in stocks:
-        present_dates = db_dates_seen.get(stock.ticker, set())
-        missing_dates = expected_dates - present_dates
-
-        for day in sorted(missing_dates):
-            print(f"[WARN] Missing DB price data for {stock.ticker} on {day}")
+    missing_tickers = [stock.ticker for stock in stocks if stock.ticker not in seen_tickers]
+    if missing_tickers:
+        print(f"[WARNING] No price data found for tickers: {', '.join(missing_tickers)}")
 
 
 
