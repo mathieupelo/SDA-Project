@@ -2,7 +2,6 @@
 from typing import List
 from mysql.connector.abstracts import MySQLConnectionAbstract
 from data.solver_config import SolverConfig
-from data.stock import Stock
 from datetime import date, timedelta
 
 
@@ -24,7 +23,7 @@ class Portfolio:
             return f"(w={self.weight:.4f}, a={self.alpha_score:.4f})"
 
     # Portfolio
-    def __init__(self, p_id: str, creation_date: date, stocks: dict[Stock, StockMetadata], config: SolverConfig):
+    def __init__(self, p_id: str, creation_date: date, stocks: dict[str, StockMetadata], config: SolverConfig):
         self._id = p_id
         self._creation_date = creation_date
         self._stocks = stocks
@@ -39,7 +38,7 @@ class Portfolio:
         return self._creation_date
 
     @property
-    def stocks(self) -> dict[Stock, StockMetadata]:
+    def stocks(self) -> dict[str, StockMetadata]:
         return self._stocks
 
     @property
@@ -47,7 +46,7 @@ class Portfolio:
         return self._config
 
     def get_weight_table(self) -> dict[str, float]:
-        return { stock.ticker: metadata.weight for stock, metadata in self._stocks.items() }
+        return { ticker: metadata.weight for ticker, metadata in self._stocks.items()}
 
 
 
@@ -83,12 +82,11 @@ def get_portfolio(conn: MySQLConnectionAbstract, portfolio_id: str) -> Portfolio
                    WHERE ps.portfolio_id = %s
                    """, (portfolio_id,))
     rows = cursor.fetchall()
-    stocks: dict[Stock, Portfolio.StockMetadata] = { }
+    stocks: dict[str, Portfolio.StockMetadata] = { }
 
     for stock_id, name, ticker, weight, alpha_score in rows:
-        stock = Stock(stock_id, name, ticker)
         metadata = Portfolio.StockMetadata(weight, alpha_score)
-        stocks[stock] = metadata
+        stocks[name] = metadata
 
     config = SolverConfig(
         risk_aversion=risk_aversion,
@@ -102,13 +100,17 @@ def cache_portfolio_data(
         conn: MySQLConnectionAbstract,
         portfolio: Portfolio,
         signals: dict[str, float],
-        yearly_return: float):
+        yearly_return: float,
+        ticker_map: dict[str, str]):
     """
     Caches a Portfolio into the database.
 
     Parameters:
     - conn: The MySQL connection object.
     - portfolio: The Portfolio object to insert.
+    - signals: Mapping from signal name to its weight.
+    - yearly_return: Annualized return to store.
+    - ticker_to_id: Mapping from stock ticker to its corresponding database ID.
     """
     cursor = conn.cursor()
 
@@ -116,12 +118,20 @@ def cache_portfolio_data(
     cursor.execute("""
         INSERT INTO portfolio (id, date, risk_aversion, max_weight, yearly_return)
         VALUES (%s, %s, %s, %s, %s)
-    """, (portfolio.id, portfolio.creation_date, portfolio.config.risk_aversion, portfolio.config.max_weight_threshold, yearly_return))
+    """, (
+        portfolio.id,
+        portfolio.creation_date,
+        portfolio.config.risk_aversion,
+        portfolio.config.max_weight_threshold,
+        yearly_return
+    ))
 
-    stock_rows = [
-        (portfolio.id, stock.id, metadata.weight, metadata.alpha_score)
-        for stock, metadata in portfolio.stocks.items()
-    ]
+    stock_rows = []
+    for ticker, metadata in portfolio.stocks.items():
+        stock_id = ticker_map.get(ticker)
+        if stock_id is None:
+            raise ValueError(f"Ticker '{ticker}' not found in ticker_to_id mapping.")
+        stock_rows.append((portfolio.id, stock_id, metadata.weight, metadata.alpha_score))
 
     if stock_rows:
         cursor.executemany("""
@@ -134,7 +144,7 @@ def cache_portfolio_data(
         for signal, weight in signals.items()
     ]
 
-    if stock_rows:
+    if signal_rows:
         cursor.executemany("""
             INSERT INTO portfolio_signal (portfolio_id, signal_id, weight)
             VALUES (%s, %s, %s)

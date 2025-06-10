@@ -2,6 +2,8 @@
 import sys
 import os
 
+import cvxopt
+
 # Add project root (the parent of 'scripts') to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from signals.macd import MACDSignal
@@ -191,6 +193,7 @@ def run_single_backtest():
     )
 
     signal_combination = ['RSI', 'MACD', 'SMA']  # Example of a single combination
+    cvxopt.solvers.options['show_progress'] = False
 
     print(f"Backtesting signal combination : {signal_combination}")
     backtest_results = backtest_engine.run_backtest(

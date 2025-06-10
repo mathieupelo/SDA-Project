@@ -2,6 +2,8 @@
 import sys
 import os
 
+from Utils.portfolio_solver import solve_portfolio
+
 # Add project root (the parent of 'scripts') to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -9,7 +11,6 @@ from signals.signal_registry import SignalRegistry
 from Utils.df_helper import combine_signals_scores
 from dataclasses import dataclass
 import itertools
-from Utils.portfolio_solver import construct_portfolio_solver
 import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
@@ -99,6 +100,8 @@ class BacktestEngine:
             last_day=pd.to_datetime(config.end_date).date()
         )
 
+        ticker_map = api.get_ticker_map()
+
         # Create equal weights for the combination
         signal_weights = {signal_id: 1.0/len(combination) for signal_id in combination}
 
@@ -107,7 +110,6 @@ class BacktestEngine:
 
     
         # Initialize solver configuration for portfolio optimization
-        conn = connect_to_database('192.168.0.165')
         solver_config = SolverConfig(risk_aversion = 0)
 
 
@@ -121,17 +123,15 @@ class BacktestEngine:
             row = row.dropna()  # Drop NaN values to avoid issues with empty portfolios
             last_year_data = last_year_data[row.index]  # Filter data to only include relevant tickers
 
-            if solver_config._max_weight_threshold < 1 / len(row):
+            if solver_config.max_weight_threshold < 1 / len(row):
                 print(f"Not enough stocks to create portfolio at day : {day}, skipping...")
                 continue
 
-            solver = construct_portfolio_solver(
-                conn=conn,  # Replace with actual connection if needed
+            portfolio = solve_portfolio(
+                creation_date=day,
+                price_history=last_year_data,
                 alpha_scores=row.to_dict(),  # Assuming row contains alpha scores
-                config=solver_config
-            )
-
-            portfolio = solver.solve(day, last_year_data)
+                config=solver_config)
 
             #TODO: Calculate returns based on portfolio weights and price histories
             offset = get_date_offset(config.evaluation_period)
@@ -180,7 +180,8 @@ class BacktestEngine:
             api.store_portfolio_results(
                 portfolio=portfolio,
                 signal_weights=signal_weights,
-                yearly_return= portfolio_return
+                yearly_return= portfolio_return,
+                ticker_map=ticker_map
             )
 
             portfolio_list.append(portfolio)

@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta, date
+from datetime import date
 from data.api import API
 import pandas as pd
-from typing import Dict, List, Tuple, Callable, Any
+from typing import Dict, List
 
 def combine_signals_scores(
     signal_scores: Dict[date, Dict[str, Dict[str, float]]],
@@ -12,31 +12,42 @@ def combine_signals_scores(
     sorted_dates = sorted(signal_scores.keys())
     combined_scores = { }
 
-    for dt in sorted_dates:
-        day_data = signal_scores[dt]
-        combined_day = { }
+    for day in sorted_dates:
+        day_signal_scores = signal_scores[day]
+        day_combined_scores = { }
 
-        for ticker, ticker_signals in day_data.items():
+        for ticker, ticker_signal_scores in day_signal_scores.items():
             weighted_sum = 0.0
             total_weight = 0.0
 
-            for signal_name, weight in signal_weights.items():
-                if signal_name in ticker_signals:
-                    weighted_sum += ticker_signals[signal_name] * weight
+            for signal_id, weight in signal_weights.items():
+                if signal_id in ticker_signal_scores:
+                    signal_score = ticker_signal_scores[signal_id]
+
+                    if signal_score < -1 or signal_score > 1:
+                        print(f'{signal_id} for {ticker} on {day} has invalid value of {signal_score}. Clamping...')
+                        signal_score = max(-1.0, min(1.0, signal_score))
+
+                    weighted_sum += signal_score * weight
                     total_weight += weight
                 else:
-                    print(f"Warning: signal '{signal_name}' missing for {ticker} on {dt}")
+                    print(f"Warning: signal '{signal_id}' missing for {ticker} on {day}")
 
-            combined_day[ticker] = weighted_sum / total_weight if total_weight > 0 else 0.0
+            combined_score = weighted_sum / total_weight if total_weight > 0 else 0.0
 
-        combined_scores[dt] = combined_day
+            if combined_score < -1 or combined_score > 1:
+                    print(f'Combined score for {ticker} on {day} has invalid value of {combined_score}. Clamping...')
+                    combined_score = max(-1.0, min(1.0, combined_score))
+
+            day_combined_scores[ticker] = combined_score
+
+        combined_scores[day] = day_combined_scores
 
     # Convert to DataFrame
-    df_result = pd.DataFrame.from_dict(combined_scores, orient='index')
-    df_result.index.name = 'date'
-    df_result.sort_index(inplace=True)
-
-    return df_result
+    combined_scores_def = pd.DataFrame.from_dict(combined_scores, orient='index')
+    combined_scores_def.index.name = 'date'
+    combined_scores_def.sort_index(inplace=True)
+    return combined_scores_def
 
 
 

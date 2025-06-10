@@ -43,6 +43,16 @@ class API:
         return self.get_tickers_from_all_universes()
 
 
+    def get_ticker_map(self) -> dict[str, str]:
+        """
+            Returns a mapping from ticker symbol to stock ID using get_stocks().
+            """
+        conn = connect_to_database(self._host)
+        stocks = get_stocks(conn)
+        return { stock.ticker: stock.id for stock in stocks }
+
+
+
     def get_enabled_signals(self) -> set[str]:
         """
         Gets the list of enabled signals, by their id.
@@ -180,16 +190,23 @@ class API:
 
 
 
-    def store_portfolio_results(self, portfolio: Portfolio, signal_weights: dict[str, float], yearly_return: float):
+    def store_portfolio_results(
+            self,
+            portfolio: Portfolio,
+            signal_weights: dict[str, float],
+            yearly_return: float,
+            ticker_map: dict[str, str]):
         """
         Caches the provided portfolio and its return to the database.
         Args:
             portfolio: Portfolio to store into the database.
             signal_weights: A table indexed by the signals used for the computation of the portfolio, where values are the weights.
             yearly_return: Yearly return of that portfolio.
+            ticker_map: Map ticker -> stock_id for faster db storage
         """
         conn = connect_to_database(self._host)
-        cache_portfolio_data(conn, portfolio, signal_weights, yearly_return)
+        cache_portfolio_data(conn, portfolio, signal_weights, yearly_return, ticker_map)
+
 
 
 
