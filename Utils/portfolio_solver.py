@@ -11,9 +11,14 @@ import pandas as pd
 
 class PortfolioSolver:
 
-    
-
     def __init__(self, alpha_scores: dict[Stock, float], config: SolverConfig):
+        if not alpha_scores:
+            raise ValueError("alpha_scores cannot be empty.")
+
+        for stock, score in alpha_scores.items():
+            if score is None or np.isnan(score):
+                raise ValueError(f"Invalid alpha score for stock {stock}: {score}")
+
         self._alpha_scores = alpha_scores
         self._config = config
 
@@ -29,42 +34,26 @@ class PortfolioSolver:
         """
             Solve the signal data to predict the most performant portfolio
         """
-        # Ensure the index is a regular Index (not DatetimeIndex)
-        if not isinstance(price_history.index, pd.Index):
-            raise ValueError("price_history must have a regular pd.Index of type 'date', not a DatetimeIndex.")
-
-        # Ensure all index values are exactly of type 'date'
-        if not all(isinstance(day, date) for day in price_history.index):
-            raise ValueError("Each index entry in price_history must be of type 'datetime.date'.")
-
-        stock_list = list(self._alpha_scores.keys())
-        max_threshold = self._config.max_weight_threshold
-                
+        stock_list, scores = zip(*self._alpha_scores.items())
         stock_count = len(stock_list)
-        max_threshold = max(max_threshold, 1.0 / stock_count)
+        max_threshold = max(self._config.max_weight_threshold, 1.0 / stock_count)
 
-        var_returns = price_history.astype(float).pct_change()
+        # TODO: Call astype earlier, to avoid casting multiple times
+        var_returns = price_history.astype(float).pct_change(fill_method=None)
 
         # === Compute covariance matrix (sigma) ===
         sigma: np.ndarray = var_returns.cov().values
 
         # === Normalize alpha scores ===
-        raw_scores = np.array([self._alpha_scores[stock] for stock in stock_list])
-
-        if len(raw_scores) != stock_count:
-            raise ValueError(f"Expected {stock_count} alpha scores, but got {len(raw_scores)}. "
-                             f"Check if all stocks have valid alpha scores.")
-
-        # TODO: If one of the raw scores is Nan,
-        # array([-0.52055599,         nan,  0.25826212,         nan,         nan])
-        # HOw do we want to treat NaN values? assign all 0??
-        normalized_scores = raw_scores / np.sum(raw_scores)
-        norm_alpha_scores = normalized_scores.reshape(-1, 1)
+        scores = np.array(scores)
+        scores = scores / np.sum(scores)
+        scores = scores.reshape(-1, 1)
 
         # === Optimization ===
         p = matrix(self._config.risk_aversion * sigma)
+
         # Scale expected returns + signals by (1 - alpha)
-        q = matrix(- (1 - self._config.risk_aversion) * norm_alpha_scores)
+        q = matrix(- (1 - self._config.risk_aversion) * scores)
 
         g = np.vstack([
             -np.eye(stock_count),   # No short selling (weights ≥ 0)
