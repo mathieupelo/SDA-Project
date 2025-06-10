@@ -41,8 +41,10 @@ class MACDSignal(SignalBase):
             print(f'[WARNING] | NaN evaluation for MACD {ticker} on {day} (window={len(close_prices)}).')
             return np.nan
 
-        macd_hist = macd_series.loc[day] - macd_signal_series.loc[day]
-        return macd_hist
+        # TODO: Make sure that the close_prices mean is not zero
+        macd_hist = (macd_series.loc[day] - macd_signal_series.loc[day]) / close_prices.values.mean() - 0.075
+        macd_hist_clipped = np.clip(macd_hist * 6.5, -1.0, 1.0)
+        return macd_hist_clipped
 
     def get_min_lookback_period(self) -> int:
         # Minimum needed to just compute MACD (without smoothing)

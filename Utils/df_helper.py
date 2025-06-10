@@ -58,8 +58,10 @@ def combine_signals_from_df(df_scores: pd.DataFrame, tickers: List[str], signal_
 
         # Normalize by total weight (in case some signals are missing)
         if total_weight > 0:
-            weighted_sum /= total_weight
-
+            #TODO: Check if total_weight is zero to avoid division by zero
+            #weighted_sum /= total_weight.clip(lower=0.01, upper=1)  # Ensure scores are between 0 and 1
+            weighted_sum /= total_weight  
+            
         # Assign combined signal for this ticker
         combined_scores[ticker] = weighted_sum
 

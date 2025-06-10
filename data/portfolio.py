@@ -159,7 +159,7 @@ def cache_backtest_result(
     """
     today = date.today()
     cursor = conn.cursor()
-    backtest_id = uuid.uuid1()
+    backtest_id = str(uuid.uuid1())
 
     # Step 1: Insert into backtest
     cursor.execute("""

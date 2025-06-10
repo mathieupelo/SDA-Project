@@ -32,8 +32,12 @@ class SMASignal(SignalBase):
 
         # Calculate percentage difference
         current_price = close_prices.loc[day]
-        sma_diff = (sma_short - sma_long) / current_price
-        return sma_diff
+        sma_diff = (sma_short - sma_long)
+
+        # Reducing value by 0.75 to bring the lower bound closer to -1.0
+        normalized_sma = ((current_price - sma_diff) / current_price) - 0.75
+        sma_clipped = np.clip(normalized_sma, -1.0, 1.0)
+        return sma_clipped
 
     def get_min_lookback_period(self) -> int:
         return self.long_period

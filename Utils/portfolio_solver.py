@@ -13,13 +13,13 @@ class PortfolioSolver:
 
     
 
-    def __init__(self, stock_weights: dict[Stock, float], config: SolverConfig):
-        self._stock_weights = stock_weights
+    def __init__(self, alpha_scores: dict[Stock, float], config: SolverConfig):
+        self._alpha_scores = alpha_scores
         self._config = config
 
     @property
-    def stock_weights(self) -> dict[Stock, float]:
-        return self._stock_weights
+    def alpha_scores(self) -> dict[Stock, float]:
+        return self._alpha_scores
 
     @property
     def config(self) -> SolverConfig:
@@ -37,37 +37,43 @@ class PortfolioSolver:
         if not all(isinstance(day, date) for day in price_history.index):
             raise ValueError("Each index entry in price_history must be of type 'datetime.date'.")
 
-        stock_list = list(self._stock_weights.keys())
+        stock_list = list(self._alpha_scores.keys())
+        max_threshold = self._config.max_weight_threshold
+                
         stock_count = len(stock_list)
+        max_threshold = max(max_threshold, 1.0 / stock_count)
 
-        # === Compute daily returns ===
-        # TODO: Drop all na instead of just dropna?
-        var_returns = price_history.astype(float).pct_change().dropna()
+        var_returns = price_history.astype(float).pct_change()
 
         # === Compute covariance matrix (sigma) ===
         sigma: np.ndarray = var_returns.cov().values
 
         # === Normalize alpha scores ===
-        raw_scores = np.array([self._stock_weights[stock] for stock in stock_list])
+        raw_scores = np.array([self._alpha_scores[stock] for stock in stock_list])
 
-        # TODO: If one of the raw scores is Nan, we should normalize the rest
+        if len(raw_scores) != stock_count:
+            raise ValueError(f"Expected {stock_count} alpha scores, but got {len(raw_scores)}. "
+                             f"Check if all stocks have valid alpha scores.")
+
+        # TODO: If one of the raw scores is Nan,
         # array([-0.52055599,         nan,  0.25826212,         nan,         nan])
         # HOw do we want to treat NaN values? assign all 0??
         normalized_scores = raw_scores / np.sum(raw_scores)
-        alpha_scores = normalized_scores.reshape(-1, 1)
+        norm_alpha_scores = normalized_scores.reshape(-1, 1)
 
         # === Optimization ===
         p = matrix(self._config.risk_aversion * sigma)
         # Scale expected returns + signals by (1 - alpha)
-        q = matrix(- (1 - self._config.risk_aversion) * alpha_scores)
+        q = matrix(- (1 - self._config.risk_aversion) * norm_alpha_scores)
 
         g = np.vstack([
             -np.eye(stock_count),   # No short selling (weights ≥ 0)
             np.eye(stock_count)    # Max weight per asset
         ])
+
         h = np.hstack([
             np.zeros(stock_count),   # No shorting constraint (w ≥ 0)
-            np.ones(stock_count) * self._config.max_weight_threshold  # Max per stock
+            np.ones(stock_count) * max_threshold  # Max per stock
         ])
 
         a = matrix(np.ones((1, stock_count)))
@@ -78,7 +84,7 @@ class PortfolioSolver:
 
         # === Build Portfolio ===
         metadata = {
-            stock: Portfolio.StockMetadata(weight, self._stock_weights[stock])
+            stock: Portfolio.StockMetadata(weight, self._alpha_scores[stock])
             for stock, weight in zip(stock_list, weights)
         }
 

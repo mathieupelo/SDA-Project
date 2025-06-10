@@ -14,6 +14,7 @@ import numpy as np
 from Utils.time_utils import get_date_offset
 from data.api import *
 from data.portfolio import *
+from Utils.backtest_result import BacktestResult
 
 
 @dataclass
@@ -88,7 +89,7 @@ class BacktestEngine:
         # Filter date_range to only include dates present in the data
         date_range = [day for day in date_range if day in data.index]
 
-
+        portfolio_list = []
 
         api = API('192.168.0.165')
         signal_scores = api.get_signal_scores_table_for_tickers(
@@ -99,7 +100,7 @@ class BacktestEngine:
         )
 
         # Create equal weights for the combination
-        signal_weights = {signal_name: 1.0/len(combination) for signal_name in combination}
+        signal_weights = {signal_id: 1.0/len(combination) for signal_id in combination}
 
         combined_scores_df = combine_signals_scores(signal_scores, signal_weights).dropna(how='all', axis=0)
         print(f"combined_scores_df : {combined_scores_df}")
@@ -109,11 +110,20 @@ class BacktestEngine:
         conn = connect_to_database('192.168.0.165')
         solver_config = SolverConfig(risk_aversion = 0)
 
+
         for day, row in combined_scores_df.iterrows():
             # Convert to Timestamp and subtract 1 year
             start_minus_1_year = pd.to_datetime(day) - get_date_offset('yearly')
             
             last_year_data = data.loc[start_minus_1_year.date() :day]
+
+            # Handle case where some stocks are nan
+            row = row.dropna()  # Drop NaN values to avoid issues with empty portfolios
+            last_year_data = last_year_data[row.index]  # Filter data to only include relevant tickers
+
+            if solver_config._max_weight_threshold < 1 / len(row):
+                print(f"Not enough stocks to create portfolio at day : {day}, skipping...")
+                continue
 
             solver = construct_portfolio_solver(
                 conn=conn,  # Replace with actual connection if needed
@@ -167,6 +177,14 @@ class BacktestEngine:
             portfolio_return = weighted_returns.sum()
             returns_series_timeseries.at[day] = portfolio_return
         
+            api.store_portfolio_results(
+                portfolio=portfolio,
+                signal_weights=signal_weights,
+                yearly_return= portfolio_return
+            )
+
+            portfolio_list.append(portfolio)
+
         # ======= Compute Metrics =======
         returns = returns_series_timeseries.dropna()
         total_return = (1 + returns).prod() - 1
@@ -176,6 +194,13 @@ class BacktestEngine:
         cumulative = (1 + returns).cumprod()
         max_drawdown = (cumulative / cumulative.cummax() - 1).min()
         win_rate = (returns > 0).mean()
+
+        api.store_backtest_results(
+            portfolios=portfolio_list,
+            start_date=pd.to_datetime(config.start_date).date(),
+            end_date=pd.to_datetime(config.end_date).date(),
+            execution_time=timedelta()
+        )
 
         return BacktestResult(
             combination_name="+".join(combination),

@@ -2,12 +2,11 @@
 import sys
 import os
 
+# Add project root (the parent of 'scripts') to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from signals.macd import MACDSignal
 from signals.rsi import RSISignal
 from signals.sma import SMASignal
-
-# Add project root (the parent of 'scripts') to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Utils.backtesting import *
 from Utils.df_helper import *
@@ -167,7 +166,7 @@ def run_single_backtest():
     # TODO: Call function instead
     
 
-    tickers = ['TTWO', 'MSFT', 'EA', 'SONY']
+    tickers = ['TTWO', 'MSFT', 'EA', 'SONY', 'UBI.PA']
     start_dt  = date(2010, 1, 1)
     end_dt = date(2025, 1, 1)
 
